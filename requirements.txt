@@ -1,0 +1,60 @@
+##marimo##
+marimo[sql,sandbox,recommended,lsp]
+# sqlparse
+# duckdb
+# sqlglot
+# pytest
+# vegafusion
+# vl-convert-python
+##lsp##
+basedpyright
+ty
+pyrefly
+python-lsp-server
+ruff
+##data##
+# postgres
+##data+caculation##
+polars
+# pandas
+# numpy
+torch
+# numba
+# cupy
+# torchmetrics
+#caculation##
+# xgboost
+# scikit-learn
+##cupy#no n
+##plot##
+# hvplot
+# clearml
+# matplotlib
+# plotly
+# great-tables
+# datashader
+# seaborn
+# holoviews
+# altair
+##other##
+# pyarrow
+# graphviz
+##test##
+# pytest-cov
+# pytest
+##other##
+# requests
+# bokeh-sampledata
+# dataset
+# datasets
+# huggingface
+# ipython
+# ipywidgets
+# pooch
+# python-lsp-server
+# quarto
+# sqlglot
+# statsmodels
+# tensor
+# aimos
+

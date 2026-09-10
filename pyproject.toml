@@ -1,0 +1,26 @@
+[project]
+name = "nhom3"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "mq", email = "minhquang2006m@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "basedpyright>=1.40.0",
+    "marimo[lsp,recommended,sandbox,sql]>=0.24.0",
+    "polars>=1.44.2",
+    "pyrefly>=1.2.0",
+    "python-lsp-server>=1.15.0",
+    "ruff>=0.16.6",
+    "torch>=2.14.0",
+    "ty>=0.0.80",
+]
+
+[project.scripts]
+nhom3 = "nhom3:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
