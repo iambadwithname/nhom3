@@ -43,6 +43,8 @@ torch
 # pytest-cov
 # pytest
 ##other##
+kaggle
+kagglehub
 # requests
 # bokeh-sampledata
 # dataset

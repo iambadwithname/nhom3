@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "basedpyright>=1.40.0",
+    "kaggle>=2.2.4",
+    "kagglehub>=1.0.2",
     "marimo[lsp,recommended,sandbox,sql]>=0.24.0",
     "polars>=1.44.2",
     "pyrefly>=1.2.0",

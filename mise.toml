@@ -1,0 +1,8 @@
+[env]
+[tools]
+
+[tasks]
+run = "marimo edit src/note.py"
+create_venv = "uv sync"
+[settings]
+python.uv_venv_auto = "source"
