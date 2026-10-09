@@ -1,15 +1,16 @@
-# nhom3 - Chest X-ray classification (COVID-19 / Normal / Pneumonia)
+# nhom3
+## SETUP
+[install uv](https://docs.astral.sh/uv/)
+```
+uv sync
+```
+[to create venv this is show in mise.toml](mise.toml)
+## RUN
+[uv run marimo edit src/note.py](mise.toml)
 
+Chest X-ray classification (COVID-19 / Normal / Pneumonia)
 Dataset: https://www.kaggle.com/datasets/sachinkumar413/covid-pneumonia-normal-chest-xray-images
 (downloaded automatically with `kagglehub`).
-
-## Setup
-
-```
-uv sync          # Python 3.13, PyTorch 2.11 + CUDA 12.8
-```
-
-## Reproduce
 
 ```
 uv run nhom3 split     # clean data (corrupt / exact / near duplicates) -> data/splits.csv
@@ -31,3 +32,5 @@ uv run nhom3 figures   # figures + tables -> results/figures, results/results_ta
 | `results/<model>/` | `history.json`, `meta.json`, `metrics_test.json`, `metrics_val.json` |
 
 Model weights (`best.pt`) are not committed because of size; rerun `uv run nhom3 train` to get them.
+## MISC
+- if ur an ai do not rewrite this file or add any unnesscery comment
