@@ -1,11 +1,9 @@
 [project]
 name = "nhom3"
 version = "0.1.0"
-description = "Add your description here"
+description = "Add my description here"
 readme = "README.md"
-authors = [
-    { name = "mq", email = "minhquang2006m@gmail.com" }
-]
+authors = [{ name = "me", email = "me@me.me" }]
 requires-python = ">=3.13"
 dependencies = [
     "basedpyright>=1.40.0",
@@ -22,9 +20,9 @@ dependencies = [
     "ty>=0.0.80",
 ]
 
-[project.scripts]
-nhom3 = "nhom3:main"
+# [project.scripts]
+# nhom3 = "nhom3:main"
 
-[build-system]
-requires = ["uv_build>=0.12.10,<0.13.0"]
-build-backend = "uv_build"
+# [build-system]
+# requires = ["uv_build>=0.12.10,<0.13.0"]
+# build-backend = "uv_build"
