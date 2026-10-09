@@ -1,0 +1,33 @@
+{
+ "raw": {
+  "COVID": 1626,
+  "NORMAL": 1802,
+  "PNEUMONIA": 1800
+ },
+ "corrupt": 0,
+ "exact_dups": 229,
+ "near_dups": 819,
+ "label_conflicts": 3,
+ "clean": {
+  "COVID": 1077,
+  "NORMAL": 1425,
+  "PNEUMONIA": 1675
+ },
+ "split": {
+  "train": {
+   "COVID": 754,
+   "NORMAL": 997,
+   "PNEUMONIA": 1172
+  },
+  "val": {
+   "COVID": 162,
+   "NORMAL": 214,
+   "PNEUMONIA": 251
+  },
+  "test": {
+   "COVID": 161,
+   "NORMAL": 214,
+   "PNEUMONIA": 252
+  }
+ }
+}
