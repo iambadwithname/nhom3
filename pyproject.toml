@@ -12,10 +12,12 @@ dependencies = [
     "kaggle>=2.2.4",
     "kagglehub>=1.0.2",
     "marimo[lsp,recommended,sandbox,sql]>=0.24.0",
+    "numba>=0.68.0",
     "polars>=1.44.2",
     "pyrefly>=1.2.0",
     "python-lsp-server>=1.15.0",
     "ruff>=0.16.6",
+    "scipy>=1.18.1",
     "torch>=2.14.0",
     "ty>=0.0.80",
 ]
