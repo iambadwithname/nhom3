@@ -16,7 +16,7 @@ def _():
     from numba import jit
     import os
     from torchvision.datasets import ImageFolder
-    from torchvision import datasets 
+    from torchvision import datasets
     from torchvision import transforms
     from torchvision.transforms import ToTensor
     import torchvision
@@ -42,70 +42,57 @@ def _():
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(datasets, kagglehub, lib, torchvision, transforms):
-    ##download data
+    ##importing data
     datapath = kagglehub.dataset_download("sachinkumar413/covid-pneumonia-normal-chest-xray-images")
-
-    normalize=   transforms.Normalize(
-            mean=0.5067335367202759,
-            std=0.23598085343837738,
+    # [ "0.5067335367202759", "0.23598085343837738" ]
+    normalize = transforms.Normalize(
+        mean=0.5067335367202759,
+        std=0.23598085343837738,
     )
-    normalizei=   transforms.Normalize(
-            mean=-normalize.mean*4.2,
-            std=1/normalize.std,
+    normalizei = transforms.Normalize(
+        mean=-normalize.mean / normalize.std,
+        std=1 / normalize.std,
     )
-    transformi=transforms.Compose([
-        normalizei,
-        torchvision.transforms.ToPILImage(),
-    ])
-    transform = transforms.Compose([
-        transforms.CenterCrop((232, 232)),
-        transforms.ToTensor(),
-        transforms.Lambda(lib.my._x),
-        normalize
-    ])
-    #[ "0.5067335367202759", "0.23598085343837738" ]
-    #transforms.Normalize( mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), )
-    dataset = datasets.ImageFolder(datapath,transform=transform)
+    transformi = transforms.Compose(
+        [
+            normalizei,
+            torchvision.transforms.ToPILImage(),
+        ]
+    )
+    transform = transforms.Compose([transforms.CenterCrop((232, 232)), transforms.ToTensor(), transforms.Lambda(lib.my._x), normalize])
+    dataset = datasets.ImageFolder(datapath, transform=transform)
     return dataset, transformi
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(DataLoader, dataset, islice, torch):
-    def _f():
+    def _f():# this is to get std and mean of the dataset just ignore it
         if 0:
-            loader = DataLoader(dataset, batch_size=64, shuffle=True,num_workers=20)
-            a=torch.tensor([[i[0].mean(),i[0].var()] for i in islice(loader,2000) ])
-            return (a[:,0].mean(),(a[:,1].mean()+a[:,0].var()).sqrt())
+            loader = DataLoader(dataset, batch_size=64, shuffle=True, num_workers=20)
+            a = torch.tensor([[i[0].mean(), i[0].var()] for i in islice(loader, 2000)])
+            return (a[:, 0].mean(), (a[:, 1].mean() + a[:, 0].var()).sqrt())
+
     _f()
-    return
-
-
-@app.cell
-def _(dataset):
-    (dataset[0][0].permute(2,0,1))
     return
 
 
 @app.cell(hide_code=True)
 def _(dataset, mo, transformi):
-    mo.hstack([
-    transformi(dataset[j][0].permute(2,0,1)) for j in range(4)])
+    mo.hstack([transformi(dataset[j][0].permute(2, 0, 1)) for j in range(4)])
     return
 
 
 @app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
+def _(dataset):
+    dataset.__dir__()
+    return
 
 
 @app.cell
-def _(os):
-    for _i in os.walk(f"../../config"):
-        print(_i)
+def _(dataset):
+    dataset.extensions
     return
 
 
