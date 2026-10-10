@@ -20,55 +20,60 @@ def _():
     from torchvision import transforms
     from torchvision.transforms import ToTensor
     import torchvision
-    import lib.my
     from itertools import islice
     from torch.utils.data import DataLoader
     import marimo as mo
+    from torch.utils.data import random_split, Subset
 
     return (
         DataLoader,
-        datasets,
+        Subset,
         islice,
         jit,
-        kagglehub,
-        lib,
         mo,
-        os,
-        plt,
+        nn,
+        random_split,
         read_image,
         torch,
-        torchvision,
-        transforms,
     )
+
+
+@app.cell
+def _(torch):
+    # setup
+
+    torch._logging.set_logs(graph_code=False)
+    return
 
 
 @app.cell(hide_code=True)
-def _(datasets, kagglehub, lib, torchvision, transforms):
-    ##importing data
-    datapath = kagglehub.dataset_download("sachinkumar413/covid-pneumonia-normal-chest-xray-images")
-    # [ "0.5067335367202759", "0.23598085343837738" ]
-    normalize = transforms.Normalize(
-        mean=0.5067335367202759,
-        std=0.23598085343837738,
-    )
-    normalizei = transforms.Normalize(
-        mean=-normalize.mean / normalize.std,
-        std=1 / normalize.std,
-    )
-    transformi = transforms.Compose(
-        [
-            normalizei,
-            torchvision.transforms.ToPILImage(),
-        ]
-    )
-    transform = transforms.Compose([transforms.CenterCrop((232, 232)), transforms.ToTensor(), transforms.Lambda(lib.my._x), normalize])
-    dataset = datasets.ImageFolder(datapath, transform=transform)
+def _():
+    from lib.my import dataset, transformi
+
     return dataset, transformi
+
+
+@app.cell
+def _(dataset):
+    dataset[0][0].shape
+    return
+
+
+@app.cell
+def _(dataset, random_split, torch):
+    def _f_split(dataset):
+        n = len(dataset)
+        l = [int(n * 0.6), int(n * 0.2)]  # why 622 cause duh
+        l.append(n - sum(l))
+        return random_split(dataset, l, torch.Generator().manual_seed(67))
+
+    dataset_train, dataset_valid, dataset_test = _f_split(dataset)
+    return (dataset_train,)
 
 
 @app.cell(hide_code=True)
 def _(DataLoader, dataset, islice, torch):
-    def _f():# this is to get std and mean of the dataset just ignore it
+    def _f():  # this is to get std and mean of the dataset just ignore it
         if 0:
             loader = DataLoader(dataset, batch_size=64, shuffle=True, num_workers=20)
             a = torch.tensor([[i[0].mean(), i[0].var()] for i in islice(loader, 2000)])
@@ -80,38 +85,7 @@ def _(DataLoader, dataset, islice, torch):
 
 @app.cell(hide_code=True)
 def _(dataset, mo, transformi):
-    mo.hstack([transformi(dataset[j][0].permute(2, 0, 1)) for j in range(4)])
-    return
-
-
-@app.cell
-def _(dataset):
-    dataset.__dir__()
-    return
-
-
-@app.cell
-def _(dataset):
-    dataset.extensions
-    return
-
-
-@app.cell
-def _(path1, plt, read_image):
-    plt.imshow(read_image(f"{path1}/COVID/COVID_43.png").permute(1, 2, 0)[:, :, 3:4])
-    return
-
-
-@app.cell
-def _(path1, read_image):
-    a = read_image(f"{path1}/COVID/COVID_43.png")
-    a.permute(1, 2, 0)
-    return
-
-
-@app.cell
-def _(path1, read_image, torch):
-    images = torch.stack([read_image(f"{path1}/COVID/COVID{f'_{i + 1}' if i else ''}.png") for i in range(1626)]).to(dtype=float)
+    mo.hstack([transformi(dataset[j][0]) for j in range(4)])
     return
 
 
@@ -125,19 +99,122 @@ def _(jit, read_image, torch):
 
 
 @app.cell
-def _(os, path1):
-    os(path1)
+def _(nn):
+    class SimpleCNN(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.CNN = nn.Sequential(
+                nn.Conv2d(1, 2, (3, 3)),
+                nn.Conv2d(2, 4, (3, 3), (1, 1), (3, 3)),
+                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
+                nn.Conv2d(4, 8, (3, 3), (3, 3)),
+                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
+                nn.Conv2d(8, 16, (3, 3), (3, 3)),
+                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
+                nn.Conv2d(16, 32, (3, 3), (3, 3)),
+                nn.Conv2d(32, 64, (3, 3), (3, 3)),
+            )
+            self.pooling = nn.AdaptiveAvgPool2d((2, 2))
+            self.Activation = nn.Sequential(nn.ReLU())
+            self.fc = nn.Sequential(
+                nn.Linear(256, 64),
+                self.Activation,
+                nn.Linear(64, 32),
+                self.Activation,
+                nn.Linear(32, 3),
+            )
+
+        def forward(self, x):
+            x = self.CNN(x)
+            x = self.pooling(x)
+            x = x.flatten(-3)
+            x = self.fc(x)
+            return x
+
+    return (SimpleCNN,)
+
+
+@app.cell
+def _(dataset):
+    dataset[0][0].shape
     return
 
 
 @app.cell
-def _():
-    print("Asfd")
+def _(SimpleCNN, dataset):
+    model1 = SimpleCNN()
+    #model1 = torch.compile(model1)
+    model1(dataset[0][0]).shape
+    return (model1,)
+
+
+@app.cell
+def _(DataLoader, Subset, dataset_train):
+    data_loader = DataLoader(Subset(dataset_train, range(64)), batch_size=64, shuffle=True, num_workers=2, persistent_workers=True)
+    return (data_loader,)
+
+
+app._unparsable_cell(
+    r"""
+    if 0:
+       for module in model.modules():
+            if hasattr(module, "reset_parameters"):
+            module.reset_parameters() 
+    """,
+    name="_"
+)
+
+
+@app.cell
+def _(model1, torch):
+    model1.opt = torch.optim.Adam(model1.parameters(), lr=0.001)
     return
 
 
 @app.cell
-def _():
+def _(torch):
+    torch.optim
+    return
+
+
+@app.cell
+def _(data_loader, model1, nn):
+    import enum
+
+    for epoc in range(10):
+        for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
+            predict = model1(xy[0])
+            loss = nn.functional.cross_entropy(predict, xy[1])
+            loss.backward()
+            model1.opt.step()
+            model1.opt.zero_grad()
+            print(loss)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## TEST
+    """)
+    return
+
+
+@app.cell
+def _(nn):
+    nn.Conv2d(1, 2, (3, 4), (5, 6), (7, 8), (9, 10))
+    return
+
+
+@app.cell
+def _(nn):
+    nn.MaxPool2d((1, 2), (3, 4), (5, 6), (7, 8))
+    return
+
+
+@app.cell
+def _(dataset):
+    dataset.__dir__()
     return
 
 
