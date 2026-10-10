@@ -111,15 +111,21 @@ def _(dataset_train, mo, nn):
     class SimpleCNN(nn.Module):
         def __init__(self):
             super().__init__()
+            self.drop=nn.Dropout(0.09)
             self.CNN = nn.Sequential(
                 nn.Conv2d(1, 2, (3, 3)),
                 nn.Conv2d(2, 4, (3, 3), (1, 1), (3, 3)),
+                self.drop,
                 nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(4, 8, (3, 3), (3, 3)),
+                self.drop,
                 nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(8, 16, (3, 3), (3, 3)),
+                self.drop,
                 nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(16, 32, (3, 3), (3, 3)),
+                self.drop,
+                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(32, 64, (3, 3), (3, 3)),
             )
             self.pooling = nn.AdaptiveAvgPool2d((2, 2))
@@ -198,7 +204,7 @@ def _(data_loader, mo, model1, model1_buttons, nn):
     mo.stop(not model1_buttons["train"].value)
 
     def _f():
-        for epoc in range(100):
+        for epoc in range(10000):
             for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
                 predict = model1(xy[0])
                 loss = nn.functional.cross_entropy(predict, xy[1])
@@ -228,6 +234,7 @@ def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
             metric.update(predict.T, F.one_hot(xy[1], 3).T)
             loss += nn.functional.cross_entropy(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
+            right += (predict.argmax(-1) != xy[1]).sum()
             su += predict.shape[0]
         print(loss)
         print(metric.compute())
@@ -250,15 +257,20 @@ def _(AUC, F, data_test, mo, model1, model1_buttons, nn, torch):
         su = 0
         right = 0
         metric = AUC(n_tasks=3)
+        wrong = []
         for batch, xy in enumerate(data_test):  # note dont break in anyway or the worker will crash
             predict = model1(xy[0])
             metric.update(predict.T, F.one_hot(xy[1], 3).T)
             loss += nn.functional.cross_entropy(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
+            wrong.append((predict.argmax(-1) != xy[1]).nonzero().flatten() + batch * data_test.batch_size)
             su += predict.shape[0]
+        wrong = torch.concat(wrong)
+        print(wrong)
         print(loss)
         print(metric.compute())
         print(f"{right}/{su}")
+
         model1.train(True)
 
     _f()
@@ -266,8 +278,9 @@ def _(AUC, F, data_test, mo, model1, model1_buttons, nn, torch):
 
 
 @app.cell
-def _(AUC):
-    AUC()
+def _(dataset, dataset_test, transformi):
+    print(dataset_test[0][1],dataset.classes)
+    transformi(dataset_test[0][0])
     return
 
 
