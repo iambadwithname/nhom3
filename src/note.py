@@ -23,7 +23,9 @@ def _():
     from itertools import islice
     from torch.utils.data import DataLoader
     import marimo as mo
+    from lib import my2
     from torch.utils.data import random_split, Subset
+    from torchinfo import summary
 
     return (
         DataLoader,
@@ -31,19 +33,29 @@ def _():
         islice,
         jit,
         mo,
+        my2,
         nn,
         random_split,
         read_image,
+        summary,
         torch,
     )
 
 
-@app.cell
-def _(torch):
-    # setup
+app._unparsable_cell(
+    r"""
+    mo.ui.range_slider(0, len(dataset_train),,full_width=True,label="train size")
+    """,
+    name="_"
+)
 
+
+@app.cell
+def _(dataset_train, mo, torch):
+    # setup
+    model1_buttons = mo.ui.dictionary({"train size": mo.ui.range_slider(0, len(dataset_train), value=(0, 256), full_width=True, label="train size")} | {i: mo.ui.run_button(label=i) for i in ["train", "test", "valid", "load", "save", "reset"]})
     torch._logging.set_logs(graph_code=False)
-    return
+    return (model1_buttons,)
 
 
 @app.cell(hide_code=True)
@@ -68,7 +80,7 @@ def _(dataset, random_split, torch):
         return random_split(dataset, l, torch.Generator().manual_seed(67))
 
     dataset_train, dataset_valid, dataset_test = _f_split(dataset)
-    return (dataset_train,)
+    return dataset_test, dataset_train, dataset_valid
 
 
 @app.cell(hide_code=True)
@@ -135,60 +147,98 @@ def _(nn):
 
 
 @app.cell
-def _(dataset):
-    dataset[0][0].shape
-    return
-
-
-@app.cell
-def _(SimpleCNN, dataset):
+def _(SimpleCNN, dataset, summary, torch):
     model1 = SimpleCNN()
-    #model1 = torch.compile(model1)
+    # model1 = torch.compile(model1)
     model1(dataset[0][0]).shape
+    summary(model1, input_size=(1, 232, 232))
+    model1.opt = torch.optim.Adam(model1.parameters(), lr=0.001)
     return (model1,)
 
 
 @app.cell
+def _(DataLoader, dataset_test, dataset_valid):
+    data_test = DataLoader(dataset_test, batch_size=64, num_workers=4, persistent_workers=True)
+    data_valid = DataLoader(dataset_valid, batch_size=64, num_workers=4, persistent_workers=True)
+    return (data_valid,)
+
+
+@app.cell
 def _(DataLoader, Subset, dataset_train):
-    data_loader = DataLoader(Subset(dataset_train, range(64)), batch_size=64, shuffle=True, num_workers=2, persistent_workers=True)
+    data_loader = DataLoader(Subset(dataset_train, range(64)), batch_size=64, shuffle=True, num_workers=4, persistent_workers=True)
     return (data_loader,)
 
 
-app._unparsable_cell(
-    r"""
-    if 0:
-       for module in model.modules():
-            if hasattr(module, "reset_parameters"):
-            module.reset_parameters() 
-    """,
-    name="_"
-)
-
-
 @app.cell
-def _(model1, torch):
-    model1.opt = torch.optim.Adam(model1.parameters(), lr=0.001)
+def _(mo, model1, model1_buttons):
+    mo.stop(not model1_buttons["reset"].value)
+    for module in model1.modules():
+        if hasattr(module, "reset_parameters"):
+            module.reset_parameters()
     return
 
 
 @app.cell
-def _(torch):
-    torch.optim
+def _(model1, my2):
+    my2.get_dir(model1)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, model1, model1_buttons, my2, torch):
+    # save
+    mo.stop(not model1_buttons["save"].value)
+    torch.save(model1.state_dict(), f"{my2.get_path(model1)}/1.pth")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, model1, model1_buttons, my2, torch):
+    # load
+    mo.stop(not model1_buttons["load"].value)
+    model1.load_state_dict(torch.load(f"{my2.get_path(model1)}/1.pth", weights_only=True))
     return
 
 
 @app.cell
-def _(data_loader, model1, nn):
-    import enum
+def _(data_loader, mo, model1, model1_buttons, nn):
+    # train
+    mo.stop(not model1_buttons["train"].value)
 
-    for epoc in range(10):
-        for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
-            predict = model1(xy[0])
-            loss = nn.functional.cross_entropy(predict, xy[1])
-            loss.backward()
-            model1.opt.step()
-            model1.opt.zero_grad()
-            print(loss)
+    def _f():
+        for epoc in range(10):
+            for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
+                predict = model1(xy[0])
+                loss = nn.functional.cross_entropy(predict, xy[1])
+                loss.backward()
+                model1.opt.step()
+                model1.opt.zero_grad()
+                print(loss)
+
+    _f()
+    return
+
+
+@app.cell
+def _(data_valid, loss, mo, model1, model1_buttons, torch):
+    # valid
+    mo.stop(not model1_buttons["valid"].value)
+
+    def _f():
+        with torch.no_grad():
+            model1.train(False)
+            for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
+                predict = model1(xy[0])
+                print(loss)
+            model1.train(True)
+
+    _f()
+    return
+
+
+@app.cell
+def _(model1_buttons):
+    model1_buttons.hstack()
     return
 
 
