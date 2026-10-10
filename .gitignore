@@ -1,2 +1,12 @@
 **/__marimo__/
+<<<<<<< HEAD
 **/__pycache__/
+||||||| 8e256d6
+=======
+.venv/
+__pycache__/
+data/cache_*.pt
+results/**/best.pt
+results/**/*.npy
+*.log
+>>>>>>> origin/main
