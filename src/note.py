@@ -224,13 +224,13 @@ def _(data_valid, loss, mo, model1, model1_buttons, torch):
     # valid
     mo.stop(not model1_buttons["valid"].value)
 
+    @torch.no_grad()
     def _f():
-        with torch.no_grad():
-            model1.train(False)
-            for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
-                predict = model1(xy[0])
-                print(loss)
-            model1.train(True)
+        model1.train(False)
+        for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
+            predict = model1(xy[0])
+            print(loss)
+        model1.train(True)
 
     _f()
     return
