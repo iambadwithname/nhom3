@@ -26,43 +26,40 @@ def _():
     from lib import my2
     from torch.utils.data import random_split, Subset
     from torchinfo import summary
+    import marimo as mo
+    from lib.my import dataset, transformi
+    from torcheval.metrics.aggregation.auc import AUC
 
     return (
+        AUC,
         DataLoader,
+        F,
         Subset,
+        dataset,
         islice,
-        jit,
         mo,
         my2,
         nn,
         random_split,
-        read_image,
         summary,
         torch,
+        transformi,
     )
 
 
-app._unparsable_cell(
-    r"""
-    mo.ui.range_slider(0, len(dataset_train),,full_width=True,label="train size")
-    """,
-    name="_"
-)
-
-
 @app.cell
-def _(dataset_train, mo, torch):
+def _():
     # setup
-    model1_buttons = mo.ui.dictionary({"train size": mo.ui.range_slider(0, len(dataset_train), value=(0, 256), full_width=True, label="train size")} | {i: mo.ui.run_button(label=i) for i in ["train", "test", "valid", "load", "save", "reset"]})
-    torch._logging.set_logs(graph_code=False)
-    return (model1_buttons,)
+    # torch._logging.set_logs(graph_code=False)
+    return
 
 
 @app.cell(hide_code=True)
-def _():
-    from lib.my import dataset, transformi
-
-    return dataset, transformi
+def _(mo):
+    mo.md(r"""
+    ## DATA
+    """)
+    return
 
 
 @app.cell
@@ -101,17 +98,16 @@ def _(dataset, mo, transformi):
     return
 
 
-@app.cell
-def _(jit, read_image, torch):
-    @jit
-    def f():
-        images = torch.stack([read_image(f"train/{i}.png") for i in range(1, 50000 + 1)]).to(dtype=float)
-
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## SimpleCNN
+    """)
     return
 
 
 @app.cell
-def _(nn):
+def _(dataset_train, mo, nn):
     class SimpleCNN(nn.Module):
         def __init__(self):
             super().__init__()
@@ -141,9 +137,11 @@ def _(nn):
             x = self.pooling(x)
             x = x.flatten(-3)
             x = self.fc(x)
+            x = x.softmax(-1)
             return x
 
-    return (SimpleCNN,)
+    model1_buttons = mo.ui.dictionary({"train size": mo.ui.range_slider(0, len(dataset_train), value=(0, 256), full_width=True, label="train size")} | {i: mo.ui.run_button(label=i) for i in ["train", "test", "valid", "load", "save", "reset"]})
+    return SimpleCNN, model1_buttons
 
 
 @app.cell
@@ -160,7 +158,7 @@ def _(SimpleCNN, dataset, summary, torch):
 def _(DataLoader, dataset_test, dataset_valid):
     data_test = DataLoader(dataset_test, batch_size=64, num_workers=4, persistent_workers=True)
     data_valid = DataLoader(dataset_valid, batch_size=64, num_workers=4, persistent_workers=True)
-    return (data_valid,)
+    return data_test, data_valid
 
 
 @app.cell
@@ -175,12 +173,6 @@ def _(mo, model1, model1_buttons):
     for module in model1.modules():
         if hasattr(module, "reset_parameters"):
             module.reset_parameters()
-    return
-
-
-@app.cell
-def _(model1, my2):
-    my2.get_dir(model1)
     return
 
 
@@ -206,7 +198,7 @@ def _(data_loader, mo, model1, model1_buttons, nn):
     mo.stop(not model1_buttons["train"].value)
 
     def _f():
-        for epoc in range(10):
+        for epoc in range(100):
             for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
                 predict = model1(xy[0])
                 loss = nn.functional.cross_entropy(predict, xy[1])
@@ -220,19 +212,62 @@ def _(data_loader, mo, model1, model1_buttons, nn):
 
 
 @app.cell
-def _(data_valid, loss, mo, model1, model1_buttons, torch):
+def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
     # valid
     mo.stop(not model1_buttons["valid"].value)
 
     @torch.no_grad()
     def _f():
         model1.train(False)
+        loss = 0
+        su = 0
+        right = 0
+        metric = AUC(n_tasks=3)
         for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
             predict = model1(xy[0])
-            print(loss)
+            metric.update(predict.T, F.one_hot(xy[1], 3).T)
+            loss += nn.functional.cross_entropy(predict, xy[1])
+            right += (predict.argmax(-1) == xy[1]).sum()
+            su += predict.shape[0]
+        print(loss)
+        print(metric.compute())
+        print(f"{right}/{su}")
         model1.train(True)
 
     _f()
+    return
+
+
+@app.cell
+def _(AUC, F, data_test, mo, model1, model1_buttons, nn, torch):
+    # test
+    mo.stop(not model1_buttons["test"].value)
+
+    @torch.no_grad()
+    def _f():
+        model1.train(False)
+        loss = 0
+        su = 0
+        right = 0
+        metric = AUC(n_tasks=3)
+        for batch, xy in enumerate(data_test):  # note dont break in anyway or the worker will crash
+            predict = model1(xy[0])
+            metric.update(predict.T, F.one_hot(xy[1], 3).T)
+            loss += nn.functional.cross_entropy(predict, xy[1])
+            right += (predict.argmax(-1) == xy[1]).sum()
+            su += predict.shape[0]
+        print(loss)
+        print(metric.compute())
+        print(f"{right}/{su}")
+        model1.train(True)
+
+    _f()
+    return
+
+
+@app.cell
+def _(AUC):
+    AUC()
     return
 
 
@@ -247,6 +282,12 @@ def _(mo):
     mo.md(r"""
     ## TEST
     """)
+    return
+
+
+@app.cell
+def _(model1, my2):
+    my2.get_dir(model1)
     return
 
 
@@ -266,6 +307,14 @@ def _(nn):
 def _(dataset):
     dataset.__dir__()
     return
+
+
+app._unparsable_cell(
+    r"""
+    mo.ui.range_slider(0, len(dataset_train),,full_width=True,label="train size")
+    """,
+    name="_"
+)
 
 
 if __name__ == "__main__":
