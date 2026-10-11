@@ -1,3 +1,4 @@
+# 4 model của nhóm: Simple CNN, Complex CNN, ResNet-50 và MobileNetV3 (transfer learning)
 import torch
 from torch import nn
 from torchvision import models
@@ -124,8 +125,3 @@ def unfreeze_last_stages(m):
         for p in layer.parameters():
             p.requires_grad = True
 
-
-def count_params(m):
-    total = sum(p.numel() for p in m.parameters())
-    trainable = sum(p.numel() for p in m.parameters() if p.requires_grad)
-    return total, trainable
