@@ -2,9 +2,6 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 
-[manifest]
-constraints = [{ name = "scipy", specifier = "<1.17" }]
-
 [[package]]
 name = "certifi"
 version = "2026.7.22"

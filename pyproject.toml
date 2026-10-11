@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Chest X-ray classification (COVID-19 / Normal / Pneumonia) with CNNs"
 readme = "README.md"
 authors = [
-    { name = "Lê Duy Quyền" },
     { name = "Phan Thị Anh Quỳnh" },
+    { name = "Lê Duy Quyền" },
     { name = "Chử Vũ Thảo Hiền" },
     { name = "Nguyễn Minh Quang" },
 ]
@@ -35,7 +35,3 @@ torchvision = { index = "pytorch-cu128" }
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
-
-[tool.uv]
-# scipy 1.17+ DLLs get blocked by Windows Smart App Control
-constraint-dependencies = ["scipy<1.17"]
