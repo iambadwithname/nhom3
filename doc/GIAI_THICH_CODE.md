@@ -43,6 +43,7 @@ Giúp nhận biết bệnh qua việc nhìn ảnh.
 | `uv run nhom3 tune` | Thử vài cách học cho Simple CNN, chọn cách tốt nhất |
 | `uv run nhom3 train` | Cho 4 mô hình học rồi chấm đánh giá |
 | `uv run nhom3 figures` | Vẽ biểu đồ, bảng điểm phục vụ cho báo cáo |
+| `uv run nhom3 predict` | Lôi các học sinh đã học xong ra làm lại đề thi, không cần học lại (dùng khi vấn đáp) |
 
 **Thư mục nào chứa gì:**
 
@@ -390,6 +391,16 @@ Hằng số đầu file: `CLASSES` (3 lớp, thứ tự COVID = 0, NORMAL = 1, P
 | `_target_layer()`, `gradcam()` | Tính Grad-CAM: lấy gradient của lớp được đoán theo feature map của lớp conv cuối → heatmap |
 | `gradcam_figures()` | `gradcam_complex_cnn_aug.png`, `gradcam_resnet50_tl.png`: mỗi lớp 3 ảnh đúng + tối đa 6 ảnh sai |
 | `make_all()` | Chạy tất cả (lệnh `figures`) |
+
+### predict.py — dùng model đã lưu để dự đoán (cho buổi vấn đáp)
+Giống file `Predict.py` cô gửi: không train lại, chỉ mở file model đã lưu rồi dự đoán. Bên sklearn lưu model bằng `pickle`, bên mình (PyTorch) lưu bằng `torch.save` thành `best.pt` ngay lúc train.
+
+| Hàm | Làm gì |
+|---|---|
+| `predict_test()` | Lệnh `uv run nhom3 predict`: nạp `best.pt` của 5 model, dự đoán 627 ảnh test, in bảng Accuracy / Precision / Recall / F1 và confusion matrix từng model. Chạy ~20 giây |
+| `predict_image(path)` | Lệnh `uv run nhom3 predict anh.png`: đoán 1 ảnh bất kỳ bằng cả 5 model, in lớp đoán ra + xác suất |
+
+**Trước giờ vấn đáp:** mở terminal ở thư mục `nhom3`, chạy `uv run nhom3 predict`, để nguyên màn hình cho cô xem. Cần có các file `best.pt` (chỉ có trên máy đã train, không có trên git).
 
 ### __pycache__/ [máy] — tự sinh, không cần để tâm
 Python tự lưu bản dịch sẵn của file `.py` để lần sau chạy nhanh hơn.
