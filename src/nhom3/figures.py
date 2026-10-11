@@ -31,7 +31,6 @@ def _save(fig, name):
     plt.close(fig)
 
 
-# data
 def class_distribution():
     s = json.loads((DATA_DIR / "cleaning_summary.json").read_text())
     x = np.arange(len(CLASSES))
@@ -79,9 +78,8 @@ def augmentation_examples(n=5):
     _save(fig, "augmentation.png")
 
 
-# architectures
 def _stack(ax, layers, title):
-    # boxes from bottom (input) to top (output)
+    # vẽ các lớp thành ô xếp chồng, input ở dưới
     h, gap = 0.62, 0.32
     for i, (text, color) in enumerate(layers):
         y = i * (h + gap)
@@ -101,15 +99,15 @@ CONV, POOL, FC, IO, BLOCK, FROZEN = "lightblue", "peachpuff", "palegreen", "whit
 
 def architectures():
     simple = [
-        ("Input 1×224×224", IO),
-        ("5×5 Conv(16), pad 2, ReLU", CONV), ("2×2 MaxPool, stride 2", POOL),
-        ("5×5 Conv(32), pad 2, ReLU", CONV), ("2×2 MaxPool, stride 2", POOL),
-        ("3×3 Conv(64), pad 1, ReLU", CONV), ("2×2 MaxPool, stride 2", POOL),
-        ("AdaptiveAvgPool → 64×7×7", POOL),
+        ("Input 1×128×128", IO),
+        ("3×3 Conv(32), ReLU", CONV),
+        ("3×3 Conv(32), ReLU", CONV),
+        ("2×2 MaxPool", POOL),
+        ("Flatten → 123,008", POOL),
         ("FC(128), ReLU, Dropout 0.5", FC), ("FC(3), Softmax", FC),
     ]
     fig, ax = plt.subplots(figsize=(3.4, 7))
-    _stack(ax, simple, "Simple CNN (~0.43M params)")
+    _stack(ax, simple, "Simple CNN (~15.8M params)")
     _save(fig, "arch_simple_cnn.png")
 
     complex_ = [
@@ -126,7 +124,6 @@ def architectures():
     ax = fig.add_axes([0.0, 0.0, 0.38, 1])
     _stack(ax, complex_, "Complex CNN (~7.6M params)")
 
-    inc = [("Previous layer", IO)]
     ax2 = fig.add_axes([0.42, 0.5, 0.56, 0.48])
     ax2.axis("off")
     ax2.set_xlim(0, 4)
@@ -134,7 +131,7 @@ def architectures():
     ax2.set_title("Inception block", fontsize=10)
     branches = [["1×1 Conv"], ["1×1 Conv", "3×3 Conv"], ["1×1 Conv", "5×5 Conv"], ["3×3 MaxPool", "1×1 Conv"]]
     ax2.add_patch(FancyBboxPatch((1.2, 0.1), 1.6, 0.5, boxstyle="round,pad=0.02", fc=IO, ec=MUTED, lw=0.8))
-    ax2.text(2, 0.35, inc[0][0], ha="center", va="center", fontsize=8)
+    ax2.text(2, 0.35, "Previous layer", ha="center", va="center", fontsize=8)
     for b, steps in enumerate(branches):
         x = 0.05 + b * 1.0
         for s, name in enumerate(steps):
@@ -170,7 +167,6 @@ def architectures():
         _save(fig, name)
 
 
-# training results
 def curves():
     names = [c.name for c in EXPERIMENTS if (RESULTS / c.name / "history.json").exists()]
     fig, axes = plt.subplots(len(names), 2, figsize=(9, 2.4 * len(names)), squeeze=False)
@@ -194,7 +190,7 @@ def curves():
 def confusion_matrices():
     names = [c.name for c in EXPERIMENTS if (RESULTS / c.name / "metrics_test.json").exists()]
     cols = 3
-    rows = -(-len(names) // cols)
+    rows = (len(names) + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(3.6 * cols, 3.4 * rows), squeeze=False)
     for ax in axes.flat[len(names):]:
         ax.axis("off")
@@ -248,10 +244,9 @@ def tables():
     (RESULTS / "results_tables.md").write_text(text, encoding="utf-8")
 
 
-# Grad-CAM
 def _target_layer(model, name):
     if name.startswith("simple"):
-        return model.features[6]
+        return model.features[3]
     if name.startswith("complex"):
         return model.residual[-1]
     if name.startswith("resnet"):
@@ -289,7 +284,7 @@ def gradcam_figures(names=("complex_cnn_aug", "resnet50_tl")):
         prob = np.load(RESULTS / name / "probs_test.npy")
         pred = prob.argmax(1)
         rng = np.random.default_rng(0)
-        # 3 correct per class + up to 6 mistakes
+        # mỗi lớp 3 ảnh đoán đúng + tối đa 6 ảnh đoán sai
         picks = [i for c in range(3) for i in rng.choice(np.where((labels == c) & (pred == c))[0], 3, replace=False)]
         wrong = np.where(pred != labels)[0]
         picks += list(rng.choice(wrong, min(6, len(wrong)), replace=False))

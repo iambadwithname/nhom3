@@ -10,11 +10,12 @@
   "weight_decay": 0.0001,
   "head_epochs": 5,
   "finetune_lr": 0.0001,
-  "seed": 42
+  "seed": 42,
+  "img_size": 128
  },
- "best_epoch": 21,
- "epochs_run": 25,
- "train_seconds": 218.4,
- "params_total": 433667,
- "params_trainable_final": 433667
+ "best_epoch": 14,
+ "epochs_run": 20,
+ "train_seconds": 110.0,
+ "params_total": 15755107,
+ "params_trainable_final": 15755107
 }

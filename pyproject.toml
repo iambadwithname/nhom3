@@ -1,28 +1,23 @@
 [project]
 name = "nhom3"
 version = "0.1.0"
-description = "Add my description here"
+description = "Chest X-ray classification (COVID-19 / Normal / Pneumonia) with CNNs"
 readme = "README.md"
-authors = [{ name = "me", email = "me@me.me" }]
+authors = [
+    { name = "Lê Duy Quyền" },
+    { name = "Phan Thị Anh Quỳnh" },
+    { name = "Chử Vũ Thảo Hiền" },
+    { name = "Nguyễn Minh Quang" },
+]
 requires-python = ">=3.13"
 dependencies = [
-    "basedpyright>=1.40.0",
-    "kaggle>=2.2.4",
     "kagglehub>=1.0.2",
-    "marimo[lsp,recommended,sandbox,sql]>=0.24.0",
     "matplotlib>=3.11.2",
-    "numba>=0.68.0",
     "numpy>=2.5.3",
     "pillow>=12.3.0",
-    "polars>=1.44.2",
-    "pyrefly>=1.2.0",
-    "python-lsp-server>=1.15.0",
-    "ruff>=0.16.6",
     "scikit-learn>=1.9.1",
-    "scipy>=1.18.1",
     "torch>=2.11.0",
     "torchvision>=0.26.0",
-    "ty>=0.0.80",
 ]
 
 [project.scripts]
@@ -40,3 +35,7 @@ torchvision = { index = "pytorch-cu128" }
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
+
+[tool.uv]
+# scipy 1.17+ DLLs get blocked by Windows Smart App Control
+constraint-dependencies = ["scipy<1.17"]
