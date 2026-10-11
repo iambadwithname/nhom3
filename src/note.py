@@ -186,7 +186,8 @@ def _(mo, model1, model1_buttons):
 def _(mo, model1, model1_buttons, my2, torch):
     # save
     mo.stop(not model1_buttons["save"].value)
-    torch.save(model1.state_dict(), f"{my2.get_path(model1)}/1.pth")
+    torch.save(model1.state_dict(), f"{my2.get_dir(model1)}/1.pth")
+    print(f"{my2.get_dir(model1)}/1.pth")
     return
 
 
