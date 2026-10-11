@@ -256,8 +256,8 @@ def _target_layer(model, name):
 
 def gradcam(model, layer, x, cls=None):
     acts, grads = {}, {}
-    h1 = layer.register_forward_hook(lambda m, i, o: acts.__setitem__("a", o))
-    h2 = layer.register_full_backward_hook(lambda m, gi, go: grads.__setitem__("g", go[0]))
+    h1 = layer.register_forward_hook(lambda _m, _i, o: acts.__setitem__("a", o))
+    h2 = layer.register_full_backward_hook(lambda _m, _gi, go: grads.__setitem__("g", go[0]))
     model.zero_grad()
     out = model(x)
     cls = out.argmax(1) if cls is None else cls

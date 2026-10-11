@@ -4,3 +4,4 @@ data/cache_*.pt
 results/**/best.pt
 results/**/*.npy
 *.log
+.vscode/
