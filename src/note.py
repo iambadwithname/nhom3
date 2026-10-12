@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="full", auto_download=["html"])
 
 
@@ -36,29 +36,46 @@ def _():
     from torchinfo import summary
     import marimo as mo
     from lib.my import dataset, transformi
-    from torcheval.metrics.aggregation.auc import AUC
+    from torcheval import metrics
+    from torchmetrics import classification
 
     return (
-        AUC,
         DataLoader,
-        F,
         Subset,
+        classification,
         dataset,
         islice,
+        metrics,
         mo,
         my2,
         nn,
         random_split,
         summary,
         torch,
+        torchvision,
         transformi,
     )
 
 
 @app.cell
-def _():
+def _(torch):
     # setup
     # torch._logging.set_logs(graph_code=False)
+    pin_memory = True
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+        pin_memory = False
+    batch_size = 64
+    data_loader_param = dict(batch_size=batch_size, persistent_workers=True, pin_memory=pin_memory)
+    return data_loader_param, device
+
+
+@app.cell
+def _(torchvision):
+    # for data aumentation
+    torchvision.transforms.__dir__()
     return
 
 
@@ -80,7 +97,7 @@ def _(dataset):
 def _(dataset, random_split, torch):
     def _f_split(dataset):
         n = len(dataset)
-        l = [int(n * 0.6), int(n * 0.2)]  # why 622 cause duh
+        l = [int(n * 0.7), int(n * 0.1)]  # why 622 cause duh
         l.append(n - sum(l))
         return random_split(dataset, l, torch.Generator().manual_seed(67))
 
@@ -120,24 +137,24 @@ def _(dataset_train, mo, nn):
         def __init__(self):
             super().__init__()
             self.drop = nn.Dropout(0.09)
+            self.Activation = nn.Sequential(nn.ReLU())
             self.CNN = nn.Sequential(
                 nn.Conv2d(1, 2, (3, 3)),
                 nn.Conv2d(2, 4, (3, 3), (1, 1), (3, 3)),
                 self.drop,
-                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
+                nn.ReLU(),
                 nn.Conv2d(4, 8, (3, 3), (3, 3)),
                 self.drop,
-                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
+                nn.ReLU(),
                 nn.Conv2d(8, 16, (3, 3), (3, 3)),
+                nn.ReLU(),
                 self.drop,
-                nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(16, 32, (3, 3), (3, 3)),
-                self.drop,
+                self.Activation,
                 nn.MaxPool2d((3, 3), (1, 1), (1, 1)),
                 nn.Conv2d(32, 64, (3, 3), (3, 3)),
             )
             self.pooling = nn.AdaptiveAvgPool2d((2, 2))
-            self.Activation = nn.Sequential(nn.ReLU())
             self.fc = nn.Sequential(
                 nn.Linear(256, 64),
                 self.Activation,
@@ -151,7 +168,6 @@ def _(dataset_train, mo, nn):
             x = self.pooling(x)
             x = x.flatten(-3)
             x = self.fc(x)
-            x = x.softmax(-1)
             return x
 
     model1_buttons = mo.ui.dictionary({"train size": mo.ui.range_slider(0, len(dataset_train), value=(0, 256), full_width=True, label="train size")} | {i: mo.ui.run_button(label=i) for i in ["train", "test", "valid", "load", "save", "reset"]})
@@ -159,31 +175,29 @@ def _(dataset_train, mo, nn):
 
 
 @app.cell(hide_code=True)
-def _(SimpleCNN, dataset, summary, torch):
+def _(SimpleCNN, summary):
     model1 = SimpleCNN()
     # model1 = torch.compile(model1)
-    model1(dataset[0][0]).shape
-    summary(model1, input_size=(1, 232, 232))
-    model1.opt = torch.optim.Adam(model1.parameters(), lr=0.001)
+    _=summary(model1, input_size=(1, 232, 232))
     return (model1,)
 
 
 @app.cell(hide_code=True)
-def _(DataLoader, dataset_test, dataset_valid):
-    data_test = DataLoader(dataset_test, batch_size=64, num_workers=4, persistent_workers=True)
-    data_valid = DataLoader(dataset_valid, batch_size=64, num_workers=4, persistent_workers=True)
+def _(DataLoader, data_loader_param, dataset_test, dataset_valid):
+    data_test = DataLoader(dataset_test, num_workers=1, **data_loader_param)
+    data_valid = DataLoader(dataset_valid, num_workers=1, **data_loader_param)
     return data_test, data_valid
 
 
 @app.cell(hide_code=True)
-def _(DataLoader, Subset, dataset_train, model1_buttons):
-    data_loader = DataLoader(Subset(dataset_train, range(*model1_buttons["train size"].value)), batch_size=64, shuffle=True, num_workers=4, persistent_workers=True)
+def _(DataLoader, Subset, data_loader_param, dataset_train, model1_buttons):
+    data_loader = DataLoader(Subset(dataset_train, range(*model1_buttons["train size"].value)), shuffle=True, num_workers=4, **data_loader_param)
     return (data_loader,)
 
 
 @app.cell(hide_code=True)
 def _(mo, model1, model1_buttons):
-    #reset
+    # reset
     mo.stop(not model1_buttons["reset"].value)
     for module in model1.modules():
         if hasattr(module, "reset_parameters"):
@@ -201,52 +215,111 @@ def _(mo, model1, model1_buttons, my2, torch):
 
 
 @app.cell(hide_code=True)
-def _(model1, my2, torch):
+def _(model1, model1_buttons, my2, torch):
     # load
+    model1_buttons["load"].value
     model1.load_state_dict(torch.load(f"{my2.get_dir(model1)}/1.pth", weights_only=True))
     return
 
 
+@app.cell(hide_code=True)
+def _(classification, data_valid, device, nn, torch):
+    @torch.no_grad()
+    def valid(model):
+        model.train(False)
+        loss = 0
+        su = 0
+        right = 0
+        metric =classification.MulticlassAUROC(3,average=None)
+        for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
+            xy = [i.to(device) for i in xy]
+            predict = model(xy[0])
+            metric.update(predict,xy[1])
+            loss += nn.CrossEntropyLoss()(predict, xy[1])
+            right += (predict.argmax(-1) == xy[1]).sum()
+            su += predict.shape[0]
+        print(loss)
+        print(metric.compute())
+        print(f"{right}/{su}")
+        model.train(True)
+
+    return (valid,)
+
+
 @app.cell
-def _(data_loader, mo, model1, model1_buttons, nn):
+def _(data_loader, device, mo, model1, model1_buttons, nn, valid):
     # train
     mo.stop(not model1_buttons["train"].value)
+
     def _f():
-        for epoc in range(10):
+        for epoc in range(100):
+            loss2 = 0
             for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
+                xy = [i.to(device) for i in xy]
                 predict = model1(xy[0])
-                loss = nn.functional.cross_entropy(predict, xy[1])
+                loss = nn.CrossEntropyLoss()(predict, xy[1])
                 loss.backward()
                 model1.opt.step()
                 model1.opt.zero_grad()
-                print(loss)
+                loss2 += loss
+            print(loss2)
+            if(epoc%5==4):
+                valid(model1)
 
     _f()
     return
 
 
 @app.cell
-def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
+def _(mo, model1, model1_buttons, valid):
     # valid
     mo.stop(not model1_buttons["valid"].value)
+    valid(model1)
+    return
 
+
+@app.cell
+def _(model1, torch):
+    model1.opt = torch.optim.Adam(model1.parameters(), lr=0.0002)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    classification,
+    data_test,
+    device,
+    mo,
+    model1,
+    model1_buttons,
+    nn,
+    torch,
+):
+    # test
+    mo.stop(not model1_buttons["test"].value)
     @torch.no_grad()
     def _f():
         model1.train(False)
         loss = 0
         su = 0
         right = 0
-        metric = AUC(n_tasks=3)
-        for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
-            predict = model1(xy[0])
-            metric.update(predict.T, F.one_hot(xy[1], 3).T)
-            loss += nn.CrossEntropyLoss()(predict, xy[1])
+        metric =classification.MulticlassAUROC(3,average=None)
+        wrong = []
+        for batch, xy in enumerate(data_test):  # note dont break in anyway or the worker will crash
+            xy = [i.to(device) for i in xy]
+            predict =model1(xy[0])
+            metric.update(predict, xy[1])
+            loss += nn.functional.cross_entropy(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
-            right += (predict.argmax(-1) != xy[1]).sum()
+            wrong.append((predict.argmax(-1) != xy[1]).nonzero().flatten() + batch * data_test.batch_size)
             su += predict.shape[0]
+        wrong = torch.concat(wrong)
+        #print(wrong)
         print(loss)
         print(metric.compute())
         print(f"{right}/{su}")
+        print(f"{right/su}")
+
         model1.train(True)
 
     _f()
@@ -254,39 +327,8 @@ def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
 
 
 @app.cell(hide_code=True)
-def _():
-    return
-
-
-@app.cell
-def _(AUC, F, data_test, mo, model1, model1_buttons, nn, torch):
-    # test
-    mo.stop(not model1_buttons["test"].value)
-
-    @torch.no_grad()
-    def _f():
-        model1.train(False)
-        loss = 0
-        su = 0
-        right = 0
-        metric = AUC(n_tasks=3)
-        wrong = []
-        for batch, xy in enumerate(data_test):  # note dont break in anyway or the worker will crash
-            predict = model1(xy[0])
-            metric.update(predict.T, F.one_hot(xy[1], 3).T)
-            loss += nn.functional.cross_entropy(predict, xy[1])
-            right += (predict.argmax(-1) == xy[1]).sum()
-            wrong.append((predict.argmax(-1) != xy[1]).nonzero().flatten() + batch * data_test.batch_size)
-            su += predict.shape[0]
-        wrong = torch.concat(wrong)
-        print(wrong)
-        print(loss)
-        print(metric.compute())
-        print(f"{right}/{su}")
-
-        model1.train(True)
-
-    _f()
+def _(model1_buttons):
+    model1_buttons.hstack()
     return
 
 
@@ -297,17 +339,25 @@ def _(dataset, dataset_test, transformi):
     return
 
 
-@app.cell
-def _(model1_buttons):
-    model1_buttons.hstack()
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## TEST
     """)
+    return
+
+
+@app.cell
+def _(metrics, torch):
+    def _f():
+        metric = metrics.aggregation.auc.AUC()
+        # metric.update(torch.tensor([1]),torch.tensor([1]))
+        # metric.update(torch.tensor([2]),torch.tensor([2]))
+        #metric.update(torch.tensor([3,2,1]),torch.tensor([1,2,3]))
+        metric.update(torch.tensor([1,2,3,40]), torch.tensor([1,2,3,4]))
+        print(metric.compute())
+        return metric .state_dict()
+    _f()
     return
 
 
@@ -333,14 +383,6 @@ def _(nn):
 def _(dataset):
     dataset.__dir__()
     return
-
-
-app._unparsable_cell(
-    r"""
-    mo.ui.range_slider(0, len(dataset_train),,full_width=True,label="train size")
-    """,
-    name="_"
-)
 
 
 if __name__ == "__main__":

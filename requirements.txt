@@ -7,7 +7,7 @@ marimo[sql,sandbox,recommended,lsp]
 # vegafusion
 # vl-convert-python
 ##lsp##
-basedpyright
+#basedpyright
 ty
 pyrefly
 python-lsp-server
@@ -19,6 +19,9 @@ polars
 # pandas
 # numpy
 torch
+torchvision
+torchinfo
+torcheval
 # numba
 # cupy
 # torchmetrics
