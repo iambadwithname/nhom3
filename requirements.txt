@@ -1,5 +1,5 @@
 ##marimo##
-marimo[sql,sandbox,recommended,lsp]
+marimo[sql,sandbox,lsp]
 # sqlparse
 # duckdb
 # sqlglot
@@ -21,7 +21,7 @@ polars
 torch
 torchvision
 torchinfo
-torcheval
+torchmetrics
 # numba
 # cupy
 # torchmetrics
@@ -30,7 +30,7 @@ torcheval
 # scikit-learn
 ##cupy#no n
 ##plot##
-# hvplot
+hvplot
 # clearml
 # matplotlib
 # plotly

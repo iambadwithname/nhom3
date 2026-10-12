@@ -12,7 +12,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import kagglehub
     import torch
@@ -36,21 +36,25 @@ def _():
     from torchinfo import summary
     import marimo as mo
     from lib.my import dataset, transformi
-    from torcheval import metrics
     from torchmetrics import classification
+    import datetime
+    import time
+    import hvplot.polars
 
     return (
         DataLoader,
         Subset,
         classification,
         dataset,
+        datetime,
         islice,
-        metrics,
         mo,
         my2,
         nn,
+        pl,
         random_split,
         summary,
+        time,
         torch,
         torchvision,
         transformi,
@@ -178,8 +182,13 @@ def _(dataset_train, mo, nn):
 def _(SimpleCNN, summary):
     model1 = SimpleCNN()
     # model1 = torch.compile(model1)
-    _=summary(model1, input_size=(1, 232, 232))
+    _ = summary(model1, input_size=(1, 232, 232))
     return (model1,)
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)
@@ -230,44 +239,24 @@ def _(classification, data_valid, device, nn, torch):
         loss = 0
         su = 0
         right = 0
-        metric =classification.MulticlassAUROC(3,average=None)
+        auc = classification.MulticlassAUROC(3, average=None)
+        recall = classification.MulticlassRecall(3, average=None).to(device)
         for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
             xy = [i.to(device) for i in xy]
             predict = model(xy[0])
-            metric.update(predict,xy[1])
+            auc.update(predict, xy[1])
+            recall.update(predict, xy[1])
             loss += nn.CrossEntropyLoss()(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
             su += predict.shape[0]
         print(loss)
-        print(metric.compute())
+        print(auc.compute())
+        print("recall",recall.compute())
         print(f"{right}/{su}")
         model.train(True)
+        return (loss, auc.compute(), right / su)
 
     return (valid,)
-
-
-@app.cell
-def _(data_loader, device, mo, model1, model1_buttons, nn, valid):
-    # train
-    mo.stop(not model1_buttons["train"].value)
-
-    def _f():
-        for epoc in range(100):
-            loss2 = 0
-            for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
-                xy = [i.to(device) for i in xy]
-                predict = model1(xy[0])
-                loss = nn.CrossEntropyLoss()(predict, xy[1])
-                loss.backward()
-                model1.opt.step()
-                model1.opt.zero_grad()
-                loss2 += loss
-            print(loss2)
-            if(epoc%5==4):
-                valid(model1)
-
-    _f()
-    return
 
 
 @app.cell
@@ -275,6 +264,77 @@ def _(mo, model1, model1_buttons, valid):
     # valid
     mo.stop(not model1_buttons["valid"].value)
     valid(model1)
+    return
+
+
+@app.cell
+def _(pl):
+    pl.DataFrame()
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(
+    data_loader,
+    datetime,
+    device,
+    mo,
+    model1,
+    model1_buttons,
+    my2,
+    nn,
+    pl,
+    time,
+    valid,
+):
+    # train
+    mo.stop(not model1_buttons["train"].value)
+
+    def _f():
+        epoc = range(10)
+        train_stat = pl.DataFrame({"epoc": epoc})
+        train_stat = train_stat.with_columns(time_train=pl.lit(None, pl.Duration("ns")), train_loss=pl.lit(None, pl.Float64), valid_loss=pl.lit(None, pl.Float64), accuracy=pl.lit(None, pl.Float64), **{f"auc_{i}":pl.lit(None, pl.Float64) for i in range(3)})
+        for epoc in epoc:
+            loss2 = 0
+            start = time.time()
+            for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
+                xy = [i.to(device) for i in xy]
+                predict = model1(xy[0])
+                loss = nn.CrossEntropyLoss()(predict, xy[1])
+                loss.backward()
+                model1.opt.step()
+                model1.opt.zero_grad()
+                loss2 += loss.detach()
+            train_stat[epoc,"train_loss"] = loss2.to("cpu")
+            train_stat[epoc,"time_train"] = time.time() - start
+            print(loss2)
+            if epoc % 5 == 4:
+                (loss, auc, accu) = valid(model1)
+                train_stat[epoc,"valid_loss"] = loss.to("cpu")
+                for i in range(3):
+                    train_stat[epoc,f"auc_{i}"] = auc.to("cpu")[i]
+                train_stat[epoc,"accuracy"] = accu.to("cpu")
+        train_stat.write_parquet(f"{my2.get_dir(model1)}/{str(datetime.datetime.now())}")
+        return train_stat
+
+    train_stat = _f()
+    return (train_stat,)
+
+
+@app.cell
+def _(train_stat):
+    train_stat[4::5]
+    return
+
+
+@app.cell
+def _(train_stat):
+    train_stat[4::5].hvplot.line(x="epoc",y=[*[f"auc_{i}"for i in range(3)]])
     return
 
 
@@ -297,29 +357,33 @@ def _(
 ):
     # test
     mo.stop(not model1_buttons["test"].value)
+
     @torch.no_grad()
     def _f():
         model1.train(False)
         loss = 0
         su = 0
         right = 0
-        metric =classification.MulticlassAUROC(3,average=None)
+        auc = classification.MulticlassAUROC(3, average=None)
+        recall = classification.MulticlassRecall(3, average=None).to(device)
         wrong = []
         for batch, xy in enumerate(data_test):  # note dont break in anyway or the worker will crash
             xy = [i.to(device) for i in xy]
-            predict =model1(xy[0])
-            metric.update(predict, xy[1])
+            predict = model1(xy[0])
+            auc.update(predict, xy[1])
+            recall.update(predict, xy[1])
             loss += nn.functional.cross_entropy(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
             wrong.append((predict.argmax(-1) != xy[1]).nonzero().flatten() + batch * data_test.batch_size)
             su += predict.shape[0]
         wrong = torch.concat(wrong)
-        #print(wrong)
+        # print(wrong)
         print(loss)
-        print(metric.compute())
+        print("auc",auc.compute())
+        print("recall",recall.compute())
         print(f"{right}/{su}")
-        print(f"{right/su}")
-
+        print(f"{right / su}")
+        print(loss)
         model1.train(True)
 
     _f()
@@ -353,10 +417,11 @@ def _(metrics, torch):
         metric = metrics.aggregation.auc.AUC()
         # metric.update(torch.tensor([1]),torch.tensor([1]))
         # metric.update(torch.tensor([2]),torch.tensor([2]))
-        #metric.update(torch.tensor([3,2,1]),torch.tensor([1,2,3]))
-        metric.update(torch.tensor([1,2,3,40]), torch.tensor([1,2,3,4]))
+        # metric.update(torch.tensor([3,2,1]),torch.tensor([1,2,3]))
+        metric.update(torch.tensor([1, 2, 3, 40]), torch.tensor([1, 2, 3, 4]))
         print(metric.compute())
-        return metric .state_dict()
+        return metric.state_dict()
+
     _f()
     return
 
