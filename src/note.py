@@ -4,6 +4,14 @@ __generated_with = "0.24.0"
 app = marimo.App(width="full", auto_download=["html"])
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Setup
+    """)
+    return
+
+
 @app.cell
 def _():
     import kagglehub
@@ -62,13 +70,13 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(dataset):
     dataset[0][0].shape
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(dataset, random_split, torch):
     def _f_split(dataset):
         n = len(dataset)
@@ -111,7 +119,7 @@ def _(dataset_train, mo, nn):
     class SimpleCNN(nn.Module):
         def __init__(self):
             super().__init__()
-            self.drop=nn.Dropout(0.09)
+            self.drop = nn.Dropout(0.09)
             self.CNN = nn.Sequential(
                 nn.Conv2d(1, 2, (3, 3)),
                 nn.Conv2d(2, 4, (3, 3), (1, 1), (3, 3)),
@@ -150,7 +158,7 @@ def _(dataset_train, mo, nn):
     return SimpleCNN, model1_buttons
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(SimpleCNN, dataset, summary, torch):
     model1 = SimpleCNN()
     # model1 = torch.compile(model1)
@@ -160,21 +168,22 @@ def _(SimpleCNN, dataset, summary, torch):
     return (model1,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(DataLoader, dataset_test, dataset_valid):
     data_test = DataLoader(dataset_test, batch_size=64, num_workers=4, persistent_workers=True)
     data_valid = DataLoader(dataset_valid, batch_size=64, num_workers=4, persistent_workers=True)
     return data_test, data_valid
 
 
-@app.cell
-def _(DataLoader, Subset, dataset_train):
-    data_loader = DataLoader(Subset(dataset_train, range(64)), batch_size=64, shuffle=True, num_workers=4, persistent_workers=True)
+@app.cell(hide_code=True)
+def _(DataLoader, Subset, dataset_train, model1_buttons):
+    data_loader = DataLoader(Subset(dataset_train, range(*model1_buttons["train size"].value)), batch_size=64, shuffle=True, num_workers=4, persistent_workers=True)
     return (data_loader,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, model1, model1_buttons):
+    #reset
     mo.stop(not model1_buttons["reset"].value)
     for module in model1.modules():
         if hasattr(module, "reset_parameters"):
@@ -192,10 +201,9 @@ def _(mo, model1, model1_buttons, my2, torch):
 
 
 @app.cell(hide_code=True)
-def _(mo, model1, model1_buttons, my2, torch):
+def _(model1, my2, torch):
     # load
-    mo.stop(not model1_buttons["load"].value)
-    model1.load_state_dict(torch.load(f"{my2.get_path(model1)}/1.pth", weights_only=True))
+    model1.load_state_dict(torch.load(f"{my2.get_dir(model1)}/1.pth", weights_only=True))
     return
 
 
@@ -203,9 +211,8 @@ def _(mo, model1, model1_buttons, my2, torch):
 def _(data_loader, mo, model1, model1_buttons, nn):
     # train
     mo.stop(not model1_buttons["train"].value)
-
     def _f():
-        for epoc in range(10000):
+        for epoc in range(10):
             for batch, xy in enumerate(data_loader):  # note dont break in anyway or the worker will crash
                 predict = model1(xy[0])
                 loss = nn.functional.cross_entropy(predict, xy[1])
@@ -233,7 +240,7 @@ def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
         for batch, xy in enumerate(data_valid):  # note dont break in anyway or the worker will crash
             predict = model1(xy[0])
             metric.update(predict.T, F.one_hot(xy[1], 3).T)
-            loss += nn.functional.cross_entropy(predict, xy[1])
+            loss += nn.CrossEntropyLoss()(predict, xy[1])
             right += (predict.argmax(-1) == xy[1]).sum()
             right += (predict.argmax(-1) != xy[1]).sum()
             su += predict.shape[0]
@@ -243,6 +250,11 @@ def _(AUC, F, data_valid, mo, model1, model1_buttons, nn, torch):
         model1.train(True)
 
     _f()
+    return
+
+
+@app.cell(hide_code=True)
+def _():
     return
 
 
@@ -280,7 +292,7 @@ def _(AUC, F, data_test, mo, model1, model1_buttons, nn, torch):
 
 @app.cell
 def _(dataset, dataset_test, transformi):
-    print(dataset_test[0][1],dataset.classes)
+    print(dataset_test[0][1], dataset.classes)
     transformi(dataset_test[0][0])
     return
 
