@@ -10,19 +10,18 @@ import numpy as np
 import torch
 from matplotlib.patches import FancyBboxPatch
 
-from models import ComplexCNN, resnet50_transfer
+from models import ComplexCNN, mobilenet_transfer
 from utils import CLASSES, DATA_DIR, DEVICE, RESULTS, XrayDataset, load_split, train_augment
 
 FIG = RESULTS / "figures"
 FIG.mkdir(parents=True, exist_ok=True)
 BLUE, ORANGE, INK, MUTED = "tab:blue", "tab:orange", "black", "dimgray"
 CONV, POOL, FC, IO, BLOCK, FROZEN = "lightblue", "peachpuff", "palegreen", "whitesmoke", "lavender", "lightgray"
-NAMES = ["simple_cnn", "simple_cnn_aug", "complex_cnn_aug", "resnet50_tl", "mobilenetv3_tl"]
+NAMES = ["simple_cnn", "simple_cnn_aug", "complex_cnn_aug", "mobilenetv3_tl"]
 LABELS = {
     "simple_cnn": "Simple CNN",
     "simple_cnn_aug": "Simple CNN + Aug",
     "complex_cnn_aug": "Complex CNN + Aug",
-    "resnet50_tl": "ResNet-50 TL + Aug",
     "mobilenetv3_tl": "MobileNetV3 TL + Aug",
 }
 plt.rcParams.update({"axes.grid": True, "grid.alpha": 0.3, "savefig.dpi": 200, "savefig.bbox": "tight"})
@@ -146,9 +145,6 @@ fig.savefig(FIG / "arch_complex_cnn.png")
 plt.close(fig)
 
 for fname, title, frozen, trainable in [
-    ("arch_resnet50_tl.png", "ResNet-50 transfer learning",
-     ["conv1 7×7 + MaxPool", "layer1 (3 bottlenecks)", "layer2 (4 bottlenecks)", "layer3 (6 bottlenecks)"],
-     ["layer4 (3 bottlenecks)"]),
     ("arch_mobilenetv3_tl.png", "MobileNetV3-Large transfer learning",
      ["Conv 3×3 stem", "Inverted-residual blocks 1-12"],
      ["Inverted-residual blocks 13-15", "1×1 Conv(960)"]),
@@ -182,7 +178,7 @@ fig.savefig(FIG / "training_curves.png")
 plt.close(fig)
 
 # 6. Confusion matrix trên tập test
-fig, axes = plt.subplots(2, 3, figsize=(3.6 * 3, 3.4 * 2), squeeze=False)
+fig, axes = plt.subplots(2, 2, figsize=(4.2 * 2, 3.4 * 2), squeeze=False)
 for ax in axes.flat[len(NAMES):]:
     ax.axis("off")
 for ax, n in zip(axes.flat, NAMES):
@@ -231,12 +227,12 @@ text += "\n\n## Simple CNN hyperparameter search (validation set)\n\n" + "\n".jo
 # 8. Grad-CAM: tô màu vùng ảnh mà model nhìn vào khi đoán
 test_imgs, test_labels = load_split("test", 224)
 test_labels = np.array(test_labels)
-for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("resnet50_tl", resnet50_transfer(), True)]:
+for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("mobilenetv3_tl", mobilenet_transfer(), True)]:
     model.load_state_dict(torch.load(RESULTS / name / "best.pt", map_location=DEVICE))
     model = model.to(DEVICE).eval()
     for p in model.parameters():
         p.requires_grad = True
-    layer = model.residual[-1] if name.startswith("complex") else model.layer4  # lớp conv cuối
+    layer = model.residual[-1] if name.startswith("complex") else model.features[-1]  # lớp conv cuối
 
     # chọn mỗi lớp 3 ảnh đoán đúng + tối đa 6 ảnh đoán sai
     pred = np.load(RESULTS / name / "probs_test.npy").argmax(1)

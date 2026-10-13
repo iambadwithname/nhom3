@@ -8,7 +8,7 @@ import torch
 from PIL import Image
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 
-from models import ComplexCNN, SimpleCNN, mobilenet_transfer, resnet50_transfer
+from models import ComplexCNN, SimpleCNN, mobilenet_transfer
 from utils import CLASSES, DEVICE, RESULTS, XrayDataset, predict
 
 # 1. Danh sách model: (tên, model, cỡ ảnh, có nhân 3 kênh không)
@@ -16,7 +16,6 @@ MODELS = [
     ("simple_cnn", SimpleCNN(img_size=128), 128, False),
     ("simple_cnn_aug", SimpleCNN(img_size=128), 128, False),
     ("complex_cnn_aug", ComplexCNN(), 224, False),
-    ("resnet50_tl", resnet50_transfer(), 224, True),
     ("mobilenetv3_tl", mobilenet_transfer(), 224, True),
 ]
 

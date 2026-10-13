@@ -1,4 +1,4 @@
-# 4 model của nhóm: Simple CNN, Complex CNN, ResNet-50 và MobileNetV3 (transfer learning)
+# 3 model của nhóm: Simple CNN, Complex CNN và MobileNetV3 (transfer learning)
 import torch
 from torch import nn
 from torchvision import models
@@ -99,14 +99,6 @@ class ComplexCNN(nn.Module):
         return self.head(self.residual(self.inception(self.stem(x))))
 
 
-def resnet50_transfer(num_classes=3):
-    m = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
-    for p in m.parameters():
-        p.requires_grad = False
-    m.fc = nn.Sequential(nn.Dropout(0.3), nn.Linear(m.fc.in_features, num_classes))
-    return m
-
-
 def mobilenet_transfer(num_classes=3):
     m = models.mobilenet_v3_large(weights=models.MobileNet_V3_Large_Weights.IMAGENET1K_V2)
     for p in m.parameters():
@@ -116,12 +108,8 @@ def mobilenet_transfer(num_classes=3):
 
 
 def unfreeze_last_stages(m):
-    # giai đoạn fine-tune: mở khóa các tầng cuối
-    if isinstance(m, models.ResNet):
-        layers = [m.layer4]
-    else:
-        layers = m.features[-4:]
-    for layer in layers:
+    # giai đoạn fine-tune: mở khóa 4 khối cuối của MobileNetV3
+    for layer in m.features[-4:]:
         for p in layer.parameters():
             p.requires_grad = True
 

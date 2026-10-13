@@ -86,35 +86,6 @@
 [complex_cnn_aug] ep 33 full     train 0.0270/0.990  val 0.1181/0.968
 [complex_cnn_aug] ep 34 full     train 0.0263/0.993  val 0.1230/0.960
 [complex_cnn_aug] test acc 0.9569 f1 0.9596  (370.4s)
-[resnet50_tl] ep 01 head     train 0.6338/0.785  val 0.4662/0.825
-[resnet50_tl] ep 02 head     train 0.3811/0.872  val 0.3292/0.887
-[resnet50_tl] ep 03 head     train 0.3251/0.891  val 0.2942/0.892
-[resnet50_tl] ep 04 head     train 0.2883/0.897  val 0.2705/0.901
-[resnet50_tl] ep 05 head     train 0.2727/0.905  val 0.2684/0.895
-[resnet50_tl] ep 06 finetune train 0.2046/0.926  val 0.2026/0.915
-[resnet50_tl] ep 07 finetune train 0.1399/0.947  val 0.1054/0.960
-[resnet50_tl] ep 08 finetune train 0.1053/0.960  val 0.1278/0.949
-[resnet50_tl] ep 09 finetune train 0.0995/0.961  val 0.1282/0.951
-[resnet50_tl] ep 10 finetune train 0.0780/0.972  val 0.1147/0.952
-[resnet50_tl] ep 11 finetune train 0.0743/0.970  val 0.0798/0.968
-[resnet50_tl] ep 12 finetune train 0.0640/0.975  val 0.1551/0.949
-[resnet50_tl] ep 13 finetune train 0.0548/0.977  val 0.0723/0.974
-[resnet50_tl] ep 14 finetune train 0.0487/0.980  val 0.1253/0.962
-[resnet50_tl] ep 15 finetune train 0.0485/0.979  val 0.0685/0.973
-[resnet50_tl] ep 16 finetune train 0.0436/0.985  val 0.1097/0.965
-[resnet50_tl] ep 17 finetune train 0.0432/0.984  val 0.0595/0.976
-[resnet50_tl] ep 18 finetune train 0.0362/0.987  val 0.0727/0.974
-[resnet50_tl] ep 19 finetune train 0.0366/0.984  val 0.0726/0.976
-[resnet50_tl] ep 20 finetune train 0.0360/0.985  val 0.0587/0.976
-[resnet50_tl] ep 21 finetune train 0.0280/0.989  val 0.1148/0.962
-[resnet50_tl] ep 22 finetune train 0.0263/0.990  val 0.1265/0.962
-[resnet50_tl] ep 23 finetune train 0.0262/0.991  val 0.0665/0.979
-[resnet50_tl] ep 24 finetune train 0.0239/0.992  val 0.0982/0.971
-[resnet50_tl] ep 25 finetune train 0.0204/0.991  val 0.1239/0.962
-[resnet50_tl] ep 26 finetune train 0.0235/0.991  val 0.1285/0.965
-[resnet50_tl] ep 27 finetune train 0.0191/0.994  val 0.1256/0.962
-[resnet50_tl] ep 28 finetune train 0.0215/0.992  val 0.1100/0.967
-[resnet50_tl] test acc 0.9729 f1 0.9752  (467.0s)
 [mobilenetv3_tl] ep 01 head     train 0.5356/0.841  val 0.5987/0.694
 [mobilenetv3_tl] ep 02 head     train 0.2838/0.912  val 0.4564/0.793
 [mobilenetv3_tl] ep 03 head     train 0.2410/0.915  val 0.4583/0.791

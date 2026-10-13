@@ -46,7 +46,7 @@ class XrayDataset(Dataset):
         self.labels = torch.tensor(labels)
         self.aug = train_augment() if augment else None
         self.rgb = rgb
-        # model pretrained (ResNet, MobileNet) thì chuẩn hóa theo ImageNet
+        # model pretrained (MobileNet) thì chuẩn hóa theo ImageNet
         if rgb:
             self.norm = v2.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         else:
