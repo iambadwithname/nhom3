@@ -1,5 +1,3 @@
-# Phần dùng chung cho các file 1_ -> 6_
-# PyTorch không có sẵn model.fit() / model.evaluate() như Keras nên nhóm tự viết ở đây
 import csv
 import json
 import time
@@ -23,7 +21,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def raw_dir():
-    # dùng bản dataset đã tải về máy nếu có, chưa có thì tải từ Kaggle
     cached = sorted(Path.home().glob(f".cache/kagglehub/datasets/{KAGGLE_ID}/versions/*"), key=lambda p: int(p.name))
     if cached:
         return cached[-1]
@@ -33,7 +30,6 @@ def raw_dir():
 
 
 def train_augment():
-    # xoay, dịch, zoom, đổi sáng/tương phản; không lật ngang vì tim nằm bên trái
     return v2.Compose([
         v2.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.9, 1.1)),
         v2.ColorJitter(brightness=0.2, contrast=0.2),
@@ -46,7 +42,6 @@ class XrayDataset(Dataset):
         self.labels = torch.tensor(labels)
         self.aug = train_augment() if augment else None
         self.rgb = rgb
-        # model pretrained (MobileNet) thì chuẩn hóa theo ImageNet
         if rgb:
             self.norm = v2.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         else:
@@ -69,8 +64,6 @@ _cache = {}
 
 
 def load_split(split, size):
-    # đọc ảnh của 1 tập (train/val/test) theo data/splits.csv, chuyển xám, resize
-    # lần đầu lưu ra data/cache_*.pt, các lần sau load lại cho nhanh
     if (split, size) in _cache:
         return _cache[split, size]
     cache_file = DATA_DIR / f"cache_{split}_{size}.pt"
@@ -97,15 +90,12 @@ def make_loader(split, augment, rgb, batch_size, size):
 
 
 def train_model(model, cfg, unfreeze=None):
-    # giống model.fit() của Keras: train, theo dõi val loss, early stopping, lưu model tốt nhất ra best.pt
-    # unfreeze: hàm mở khóa tầng cuối (chỉ dùng cho transfer learning, sau cfg["head_epochs"] epoch)
     out_dir = RESULTS / cfg["name"]
     out_dir.mkdir(parents=True, exist_ok=True)
     model = model.to(DEVICE)
     tr = make_loader("train", cfg["augment"], cfg["rgb"], cfg["batch_size"], cfg["img_size"])
     va = make_loader("val", False, cfg["rgb"], cfg["batch_size"], cfg["img_size"])
 
-    # lớp nào ít ảnh (COVID) thì trọng số trong loss lớn hơn
     _, train_labels = load_split("train", cfg["img_size"])
     counts = np.bincount(train_labels, minlength=len(CLASSES))
     weights = torch.tensor(counts.sum() / (len(CLASSES) * counts), dtype=torch.float32, device=DEVICE)
@@ -127,7 +117,6 @@ def train_model(model, cfg, unfreeze=None):
             phase = "head"
         else:
             phase = "finetune"
-        # hết giai đoạn chỉ train lớp cuối thì mở khóa tầng cuối, fine-tune với lr nhỏ hơn
         if unfreeze is not None and epoch == cfg["head_epochs"]:
             unfreeze(model)
             optimizer, scheduler = new_optimizer(cfg["finetune_lr"])
@@ -158,7 +147,6 @@ def train_model(model, cfg, unfreeze=None):
             history[k].append(v)
         print(f"[{cfg['name']}] ep {epoch + 1:02d} {phase:8s} train {tl:.4f}/{ta:.3f}  val {vl:.4f}/{vacc:.3f}", flush=True)
 
-        # early stopping theo val loss
         if vl < best - 1e-4:
             best, bad_epochs, best_epoch = vl, 0, epoch + 1
             torch.save(model.state_dict(), out_dir / "best.pt")
@@ -177,14 +165,12 @@ def train_model(model, cfg, unfreeze=None):
     }
     (out_dir / "history.json").write_text(json.dumps(history, indent=1))
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=1))
-    # nạp lại model tốt nhất để đánh giá
     model.load_state_dict(torch.load(out_dir / "best.pt", map_location=DEVICE))
     return model
 
 
 @torch.no_grad()
 def predict(model, split, rgb, size):
-    # trả về nhãn thật + xác suất model đoán cho từng ảnh
     model = model.to(DEVICE).eval()
     ys, probs = [], []
     for x, y in make_loader(split, False, rgb, 64, size):
@@ -194,7 +180,6 @@ def predict(model, split, rgb, size):
 
 
 def evaluate_model(model, name, split, rgb, size):
-    # giống model.evaluate() của Keras: tính accuracy, precision, recall, F1, confusion matrix rồi lưu lại
     y, prob = predict(model, split, rgb, size)
     pred = prob.argmax(1)
     p, r, f, _ = precision_recall_fscore_support(y, pred, average="macro", zero_division=0)

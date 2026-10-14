@@ -1,6 +1,3 @@
-# Dùng model đã lưu (best.pt) để dự đoán, không cần train lại
-# Chạy: uv run python src/5_predict.py                -> dự đoán cả tập test
-#       uv run python src/5_predict.py duong/dan/anh.png -> dự đoán 1 ảnh
 import sys
 
 import numpy as np
@@ -11,7 +8,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_f
 from models import ComplexCNN, SimpleCNN, mobilenet_transfer
 from utils import CLASSES, DEVICE, RESULTS, XrayDataset, predict
 
-# 1. Danh sách model: (tên, model, cỡ ảnh, có nhân 3 kênh không)
 MODELS = [
     ("simple_cnn", SimpleCNN(img_size=128), 128, False),
     ("simple_cnn_aug", SimpleCNN(img_size=128), 128, False),
@@ -19,7 +15,6 @@ MODELS = [
     ("mobilenetv3_tl", mobilenet_transfer(), 224, True),
 ]
 
-# 2. Đọc trọng số đã lưu từ file best.pt
 loaded = []
 for name, model, size, rgb in MODELS:
     path = RESULTS / name / "best.pt"
@@ -30,18 +25,16 @@ for name, model, size, rgb in MODELS:
     loaded.append((name, model.to(DEVICE).eval(), size, rgb))
 
 if len(sys.argv) > 1:
-    # 3a. Dự đoán 1 ảnh
     print(f"Image: {sys.argv[1]}")
     for name, model, size, rgb in loaded:
         img = Image.open(sys.argv[1]).convert("L").resize((size, size), Image.BILINEAR)
-        x = torch.from_numpy(np.array(img))[None, None]  # 1 ảnh, 1 kênh
+        x = torch.from_numpy(np.array(img))[None, None]
         x = XrayDataset(x, [0], augment=False, rgb=rgb)[0][0][None].to(DEVICE)
         with torch.no_grad():
             prob = torch.softmax(model(x).float(), 1)[0].cpu().numpy()
         k = prob.argmax()
         print(f"{name:<18} -> {CLASSES[k]:<10} ({prob[k]:.2%})")
 else:
-    # 3b. Dự đoán tập test (627 ảnh) và in kết quả
     print(f"{'Model':<18} {'Accuracy':>9} {'Precision':>10} {'Recall':>8} {'F1':>8}")
     matrices = []
     for name, model, size, rgb in loaded:
@@ -51,7 +44,6 @@ else:
         print(f"{name:<18} {accuracy_score(y, pred):>9.4f} {p:>10.4f} {r:>8.4f} {f:>8.4f}")
         matrices.append((name, confusion_matrix(y, pred)))
 
-    # 4. Confusion matrix (hàng = nhãn thật, cột = nhãn dự đoán)
     for name, cm in matrices:
         print(f"\nConfusion matrix - {name}")
         print(f"{'':<12}" + "".join(f"{c:>11}" for c in CLASSES))

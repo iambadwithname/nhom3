@@ -1,4 +1,3 @@
-# 3 model của nhóm: Simple CNN, Complex CNN và MobileNetV3 (transfer learning)
 import torch
 from torch import nn
 from torchvision import models
@@ -8,22 +7,15 @@ class SimpleCNN(nn.Module):
     def __init__(self, num_classes=3, img_size=128):
         super().__init__()
         self.features = nn.Sequential(
-            # Thêm Convolutional Layer với 32 kernel, kích thước kernel 3*3
-            # dùng hàm relu làm hàm kích hoạt cho lớp đầu tiên
             nn.Conv2d(1, 32, 3), nn.ReLU(),
-            # Thêm Convolutional Layer
             nn.Conv2d(32, 32, 3), nn.ReLU(),
-            # Thêm Max pooling Layer
             nn.MaxPool2d(2),
         )
-        size = (img_size - 4) // 2  # 128 -> 126 -> 124 -> 62
+        size = (img_size - 4) // 2
         self.classifier = nn.Sequential(
-            # Flatten Layer chuyển từ tensor sang vector
             nn.Flatten(),
-            # Thêm Fully Connected Layer với 128 nodes và dùng hàm relu
             nn.Linear(32 * size * size, 128), nn.ReLU(),
             nn.Dropout(0.5),
-            # Output Layer có 3 node, softmax đã nằm sẵn trong CrossEntropyLoss
             nn.Linear(128, num_classes),
         )
 
@@ -40,7 +32,6 @@ def conv_bn(c_in, c_out, k, stride=1):
 
 
 class InceptionBlock(nn.Module):
-    # 4 nhánh song song rồi ghép lại theo kênh
     def __init__(self, c_in, c1, c3, c5, cp):
         super().__init__()
         self.b1 = conv_bn(c_in, c1, 1)
@@ -54,7 +45,6 @@ class InceptionBlock(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    # output = F(x) + x
     def __init__(self, c_in, c_out, stride=1):
         super().__init__()
         self.body = nn.Sequential(
@@ -74,19 +64,19 @@ class ComplexCNN(nn.Module):
     def __init__(self, num_classes=3):
         super().__init__()
         self.stem = nn.Sequential(
-            conv_bn(1, 32, 7, stride=2),    # 224 -> 112
-            nn.MaxPool2d(3, 2, padding=1),  # -> 56
+            conv_bn(1, 32, 7, stride=2),
+            nn.MaxPool2d(3, 2, padding=1),
             conv_bn(32, 64, 1),
             conv_bn(64, 96, 3),
-            nn.MaxPool2d(3, 2, padding=1),  # -> 28
+            nn.MaxPool2d(3, 2, padding=1),
         )
-        inc1 = InceptionBlock(96, 32, (48, 64), (8, 16), 16)                  # 128 kênh
-        inc2 = InceptionBlock(inc1.out_channels, 64, (64, 96), (16, 32), 32)  # 224 kênh
-        self.inception = nn.Sequential(inc1, inc2, nn.MaxPool2d(3, 2, padding=1))  # -> 14
+        inc1 = InceptionBlock(96, 32, (48, 64), (8, 16), 16)
+        inc2 = InceptionBlock(inc1.out_channels, 64, (64, 96), (16, 32), 32)
+        self.inception = nn.Sequential(inc1, inc2, nn.MaxPool2d(3, 2, padding=1))
         self.residual = nn.Sequential(
             ResidualBlock(inc2.out_channels, 256),
             ResidualBlock(256, 256),
-            ResidualBlock(256, 384, stride=2),  # -> 7
+            ResidualBlock(256, 384, stride=2),
             ResidualBlock(384, 384),
         )
         self.head = nn.Sequential(
@@ -108,7 +98,6 @@ def mobilenet_transfer(num_classes=3):
 
 
 def unfreeze_last_stages(m):
-    # giai đoạn fine-tune: mở khóa 4 khối cuối của MobileNetV3
     for layer in m.features[-4:]:
         for p in layer.parameters():
             p.requires_grad = True

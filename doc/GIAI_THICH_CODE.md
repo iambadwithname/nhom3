@@ -1,603 +1,406 @@
-# Giải thích
+# Giải thích project – ôn vấn đáp
 
-- Phần A: tổng quan project, đề bài, luồng chạy, cách làm từng task
-- Phần B: giải thích từng file / thư mục
-- Phần C: đi theo luồng code (file nào gọi file nào)
+Tài liệu ôn cho buổi vấn đáp, gồm 2 phần như cô yêu cầu:
+- **Phần code** (mục 1 → 6): dataset + tiền xử lý, Simple CNN, Complex CNN, Transfer Learning, cách train / đánh giá, kết quả.
+- **Phần lý thuyết** (mục 7): trả lời 15 câu hỏi.
 
----
-
-# PHẦN A. Tổng quan project
-**Project làm gì?** 
-
-Dạy máy tính nhìn ảnh X-quang phổi rồi đoán: phổi **bình thường**, **viêm phổi**, hay **COVID**.
-Giúp nhận biết bệnh qua việc nhìn ảnh.
-
-1. **Chuẩn bị (Task 1 – xử lý dữ liệu)**
-   - Có 5.228 ảnh, nhưng 1.111 ảnh bị **photo trùng**. Nếu để nguyên, ảnh ở tập test sẽ có cái giống hệt ở tập train → máy nhớ lại trong quá trình train nên mô hình cho ra kết quả rất cao. Nên phải clean ảnh thì còn 4.177 ảnh. Đây là phần data leakage giống phần Hiền làm khi lọc chưa kĩ dữ liệu.
-   - Chia ảnh làm 3 phần: **70% bài tập** (train, để học), **15% bài kiểm tra thử** (val, để biết học tới đâu), **15% đề thi thật** (test, chỉ dùng 1 lần để chấm điểm).
-   - Ảnh nào cũng resize về cùng cỡ cho dễ học.
-   - **Augmentation** = xoay nhẹ, dịch nhẹ, chỉnh sáng tối ảnh bài tập → máy gặp nhiều kiểu ảnh hơn, không học vẹt.
-
-2. **3 loại mô hình**
-   - **Simple CNN (Task 2):** Đơn giản thôi
-   - **Complex CNN (Task 3):** Ghép từ các "khối" có sẵn ý tưởng (Inception, Residual).
-   - **MobileNetV3 (Task 4 – Transfer Learning):** **đã học rất nhiều ảnh khác từ trước** (1,2 triệu ảnh). Mình chỉ dạy thêm phần nhận biết X-quang. Giống người đã giỏi nhìn ảnh, chỉ cần học thêm môn mới.
-
-3. **Học (train)**
-   - Máy xem bài tập, đoán, sai thì sửa. Lặp lại nhiều vòng (mỗi vòng = 1 **epoch**).
-   - Sau mỗi vòng làm bài kiểm tra thử. Thấy không tiến bộ nữa thì **dừng** (early stopping), giữ lại lúc giỏi nhất.
-   - Thử vài tốc độ học (**learning rate**) và số bài mỗi lần (**batch size**) xem cái nào tốt nhất → chọn lr 0,001, batch 64 cho Simple CNN.
-
-4. **Chấm thi (Task 5 – đánh giá)**
-   - Cho các mô hình làm đề thi thật (627 ảnh).
-   - **Accuracy** = đúng bao nhiêu %. 
-   - **Confusion matrix** = bảng xem hay nhầm bệnh nào thành bệnh nào.
-   - **Kết quả:** Mô hình "đã học sẵn" thắng: **MobileNetV3 đúng 97,6%**, Complex CNN 95,7%, Simple CNN 94,9%.
-   - Hay nhầm nhất: **viêm phổi bị đoán là bình thường**.
-   - **Grad-CAM** = xem mô hình nhìn vào chỗ nào trên ảnh. Có lúc nhìn đúng vào phổi, có lúc lại nhìn ra bụng, cổ → chưa hoàn hảo.
-
-**Code là các file đánh số, chạy lần lượt (mỗi file chạy thẳng từ trên xuống):**
-
-| Lệnh | Giống như |
-|---|---|
-| `uv run python src/1_preprocess.py` | Chuẩn bị đề: bỏ ảnh trùng, chia bài tập / kiểm tra / thi |
-| `uv run python src/2_simple_cnn.py` | Thử vài cách học cho Simple CNN, chọn cách tốt nhất, rồi cho nó học + chấm điểm |
-| `uv run python src/3_complex_cnn.py` | Cho Complex CNN học + chấm điểm |
-| `uv run python src/4_transfer_learning.py` | Cho MobileNetV3 học + chấm điểm |
-| `uv run python src/5_predict.py` | Lôi các học sinh đã học xong ra làm lại đề thi, không cần học lại (**dùng khi vấn đáp**) |
-| `uv run python src/6_figures.py` | Vẽ biểu đồ, bảng điểm phục vụ cho báo cáo |
-
-**Thư mục nào chứa gì:**
-
-| Thư mục | Chứa |
-|---|---|
-| `src/` | Code (các file 1_ → 6_, cộng `utils.py` và `models.py` dùng chung) |
-| `data/` | Danh sách ảnh đã lọc, ảnh nào thuộc phần nào |
-| `results/` | Điểm thi + biểu đồ của từng model |
-| `doc/` | Tài liệu (file này) |
-| `.venv/` | Đồ nghề Python, tự sinh, kệ nó |
+Mục 8 là danh sách file trong repo, mục 9 là các câu cô có thể hỏi thêm.
 
 ---
 
-# PHẦN A. TỔNG QUAN PROJECT
+## 0. Tóm tắt 1 phút
 
-## A1. Đề bài
+- **Bài toán:** phân loại ảnh X-quang ngực thành 3 lớp **COVID-19 / Normal / Pneumonia** (phân loại đa lớp, mỗi ảnh đúng 1 nhãn).
+- **Dữ liệu:** 5.228 ảnh từ Kaggle → bỏ ảnh trùng còn **4.177 ảnh** → chia train / val / test = 70 / 15 / 15.
+- **4 model:** Simple CNN (tự thiết kế), Simple CNN + augmentation, Complex CNN (khối Inception + Residual, tự thiết kế), MobileNetV3 (transfer learning).
+- **Kết quả trên tập test (627 ảnh):**
 
-Lớp chia nhóm 4 người, mỗi nhóm chọn 1 bộ ảnh (không trùng nhóm khác), làm bài toán phân loại với **5 yêu cầu**:
+| Model | Accuracy | Precision | Recall | F1 | Số tham số |
+|---|---|---|---|---|---|
+| Simple CNN | 0,9490 | 0,9492 | 0,9519 | 0,9504 | 15,76M |
+| Simple CNN + Aug | 0,9474 | 0,9491 | 0,9515 | 0,9498 | 15,76M |
+| Complex CNN + Aug | 0,9569 | 0,9605 | 0,9594 | 0,9596 | 7,56M |
+| **MobileNetV3 TL + Aug** | **0,9761** | **0,9780** | **0,9785** | **0,9781** | 4,21M |
 
-1. Tiền xử lý dữ liệu: làm sạch, chuẩn hóa, tăng cường (augmentation)
-2. Tự thiết kế **CNN đơn giản** (conv, pooling, fully connected)
-3. Tự thiết kế **CNN phức tạp** có dùng các khối (blocks)
-4. CNN dùng **Transfer Learning / Fine-tuning**
-5. **Đánh giá** mô hình bằng độ đo phù hợp
+- **Chạy khi vấn đáp:** `uv run python src/5_predict.py` → nạp model đã lưu, in bảng trên + confusion matrix, không train lại.
 
-**Đề tài nhóm:** cho 1 ảnh X-quang ngực → đoán thuộc lớp **COVID-19 / Normal / Pneumonia**.
-**Dataset:** Kaggle `sachinkumar413/covid-pneumonia-normal-chest-xray-images`, 5.228 ảnh PNG (COVID 1.626, NORMAL 1.802, PNEUMONIA 1.800).
+---
 
+## 1. Chạy code
 
-| File trong `src/` | Vai trò |
-|---|---|
-| `1_preprocess.py` | Task 1: làm sạch, chia train/val/test |
-| `2_simple_cnn.py` | Task 2: dò lr/batch size, train + đánh giá Simple CNN |
-| `3_complex_cnn.py` | Task 3: train + đánh giá Complex CNN |
-| `4_transfer_learning.py` | Task 4: train + đánh giá MobileNetV3 |
-| `5_predict.py` | Nạp model đã lưu, dự đoán (dùng khi vấn đáp) |
-| `6_figures.py` | Vẽ hình, bảng, Grad-CAM cho báo cáo |
-| `models.py` | Định nghĩa 4 model |
-| `utils.py` | Phần dùng chung: đọc ảnh, augmentation, vòng train (như `model.fit`), chấm điểm (như `model.evaluate`) |
-
-## A3. Task 1 – Tiền xử lý dữ liệu (`1_preprocess.py`)
-
-### Làm sạch
-Dataset có **rất nhiều ảnh trùng**. Nếu cùng 1 ảnh nằm cả ở train lẫn test thì mô hình chỉ cần "nhớ" là đoán đúng → điểm test cao giả (**data leakage**). Làm sạch 4 bước:
-
-| Bước | Cách làm | Bị loại |
+| Lệnh | Làm gì | Thời gian (GPU RTX 3050) |
 |---|---|---|
-| 1. Ảnh lỗi | Mở thử từng ảnh, lỗi thì bỏ | 0 |
-| 2. Trùng hoàn toàn | So mã MD5 của file, giống nhau từng byte thì giữ 1 | 229 |
-| 3. Gần trùng | Thu ảnh về "dấu vân tay" 16×16 (dHash), khác nhau ≤ 4 bit coi là 1 ảnh, gom thành nhóm, mỗi nhóm giữ 1 | 819 |
-| 4. Trùng mà khác nhãn | Nhóm trùng có cả COVID lẫn NORMAL → không biết nhãn nào đúng, bỏ cả nhóm | 3 |
-| **Còn lại** | | **4.177** (COVID 1.077, NORMAL 1.425, PNEUMONIA 1.675) |
+| `uv sync` | Cài thư viện | vài phút lần đầu |
+| `uv run python src/1_preprocess.py` | Làm sạch + chia tập | vài phút |
+| `uv run python src/2_simple_cnn.py` | Dò lr/batch + train Simple CNN | ~10 phút |
+| `uv run python src/3_complex_cnn.py` | Train Complex CNN | ~6 phút |
+| `uv run python src/4_transfer_learning.py` | Train MobileNetV3 | ~5 phút |
+| **`uv run python src/5_predict.py`** | **Nạp `best.pt`, dự đoán tập test (dùng khi vấn đáp)** | ~20 giây |
+| `uv run python src/5_predict.py anh.png` | Dự đoán 1 ảnh bất kỳ | vài giây |
+| `uv run python src/6_figures.py` | Vẽ hình + bảng cho báo cáo | ~1 phút |
 
-Bằng chứng: notebook `x-ray.ipynb` (chia trên dữ liệu chưa sạch) có **188/785 ảnh test (24%)** có bản sao trong train, riêng COVID là 43%.
+File dùng chung: `src/utils.py` (đọc ảnh, vòng train, đánh giá) và `src/models.py` (định nghĩa model).
 
-### Chia tập
-70 / 15 / 15, chia riêng từng lớp (stratified), seed 42, lưu ở `data/splits.csv`.
+**Model được lưu thế nào?** Lúc train, mỗi khi val loss tốt nhất thì lưu trọng số bằng `torch.save(model.state_dict(), "best.pt")` (utils.py dòng 152). Lúc dự đoán: tạo model rỗng rồi `model.load_state_dict(torch.load("best.pt"))` (5_predict.py dòng 24). Giống `pickle` bên sklearn nhưng PyTorch chỉ lưu trọng số, nên phải có code tạo model (models.py) mới nạp lại được.
+
+---
+
+## 2. Nội dung 1 – Dataset, bài toán, tiền xử lý
+
+### 2.1 Dataset
+- **Nguồn:** Kaggle `sachinkumar413/covid-pneumonia-normal-chest-xray-images`.
+- **Ảnh gì:** ảnh X-quang ngực chụp thẳng, file PNG, 3 thư mục COVID / NORMAL / PNEUMONIA.
+- **Số ảnh:** 5.228 (COVID 1.626, NORMAL 1.802, PNEUMONIA 1.800).
+- **Số lớp:** 3. Thứ tự nhãn trong code: `CLASSES = ["COVID", "NORMAL", "PNEUMONIA"]` (utils.py dòng 14) → COVID = 0, NORMAL = 1, PNEUMONIA = 2.
+- **Kích thước ảnh gốc:** 232×232 (4.228 ảnh) hoặc 256×256 (1.000 ảnh), lưu dạng RGB nhưng nội dung là ảnh xám.
+
+### 2.2 Bài toán
+- **Input:** 1 ảnh X-quang ngực. **Output:** 1 trong 3 nhãn + xác suất mỗi lớp (softmax).
+- Phân loại đa lớp (multi-class), các lớp loại trừ nhau.
+- Phân tích thêm: model có nhầm COVID với viêm phổi không, lớp nào khó nhất, model nhìn vào vùng nào (Grad-CAM).
+
+### 2.3 Làm sạch dữ liệu – `src/1_preprocess.py`
+
+**Vì sao phải làm sạch:** dataset có rất nhiều ảnh trùng. Nếu 1 ảnh vừa ở train vừa ở test, model chỉ cần "nhớ" là đoán đúng → điểm test cao giả (**data leakage – rò rỉ dữ liệu**). Kiểm tra cách chia ngẫu nhiên trên dữ liệu chưa làm sạch: 188/785 ảnh test (24%) có bản sao trong tập train.
+
+| Dòng | Code làm gì |
+|---|---|
+| 10–14 | `raw_dir()` tìm thư mục ảnh (bản đã tải về máy, chưa có thì tải từ Kaggle). Liệt kê mọi file `.png` trong 3 thư mục, nhãn = tên thư mục |
+| 16–23 | **Bỏ ảnh lỗi:** `Image.open(p).verify()`, lỗi thì bỏ → 0 ảnh |
+| 25–31 | **Bỏ ảnh trùng hoàn toàn:** tính mã MD5 của file; 2 file cùng MD5 = giống nhau từng byte → giữ 1 → bỏ 229 ảnh |
+| 33–37 | **dHash (dấu vân tay ảnh):** thu ảnh về 17×16 xám, so mỗi pixel với pixel bên phải (sáng hơn hay không) → 16×16 = 256 bit. Ảnh giống nhau (dù khác độ tương phản, dịch nhẹ) có dHash gần giống |
+| 39–51 | Tính số bit khác nhau giữa mọi cặp ảnh (khoảng cách Hamming). Cặp nào ≤ 4 bit thì nối vào cùng nhóm bằng **union-find** (hàm `find` tìm "gốc" của nhóm) |
+| 53–62 | Gom ảnh theo nhóm. Mỗi nhóm giữ 1 ảnh; nhóm nào có cả 2 nhãn khác nhau (vd COVID và NORMAL) thì không biết nhãn nào đúng → bỏ cả nhóm → bỏ 819 ảnh gần trùng + 3 ảnh mâu thuẫn nhãn |
+| 67–76 | **Chia tập:** riêng từng lớp, xáo trộn (seed 42) rồi cắt 70% train, 15% val, 15% test (chia phân tầng – stratified, để mỗi tập giữ tỉ lệ lớp) |
+| 78–88 | Ghi `data/splits.csv` (ảnh nào thuộc tập nào) và `data/cleaning_summary.json` (số liệu) |
+
+**Kết quả:**
+
+| Bước | Số ảnh |
+|---|---|
+| Ảnh gốc | 5.228 |
+| Ảnh lỗi | 0 |
+| Trùng hoàn toàn (MD5) | 229 |
+| Gần trùng (dHash ≤ 4 bit) | 819 |
+| Trùng nhưng khác nhãn | 3 |
+| **Còn lại** | **4.177** (COVID 1.077, NORMAL 1.425, PNEUMONIA 1.675) |
 
 | Tập | COVID | NORMAL | PNEUMONIA | Tổng | Dùng để |
 |---|---|---|---|---|---|
-| Train | 754 | 997 | 1.172 | 2.923 | Cho mô hình học |
-| Val | 162 | 214 | 251 | 627 | Chọn tham số, quyết định khi nào dừng |
+| Train | 754 | 997 | 1.172 | 2.923 | Cho model học |
+| Validation | 162 | 214 | 251 | 627 | Chọn tham số, early stopping |
 | Test | 161 | 214 | 252 | 627 | Chấm điểm cuối, chỉ dùng 1 lần |
 
-### Chuẩn hóa (`load_split`, `XrayDataset` trong utils.py)
-- Ảnh xám, resize **224×224** (Simple CNN là **128×128**), chia 255 về [0, 1].
-- 2 CNN tự xây: thêm `(x − 0.5) / 0.25`, 1 kênh.
-- MobileNetV3: nhân thành 3 kênh, chuẩn hóa theo mean/std của ImageNet.
-- Ảnh đã resize lưu vào `data/cache_*.pt` để lần sau load nhanh.
+### 2.4 Đọc ảnh và chuẩn hóa – `src/utils.py`
 
-### Augmentation (`train_augment` trong utils.py)
-Chỉ cho tập train, mỗi epoch biến đổi ngẫu nhiên: xoay ±10°, dịch 5%, zoom 90–110%, sáng/tương phản ±20%. **Không lật ngang** vì tim nằm bên trái.
+| Hàm (dòng) | Làm gì |
+|---|---|
+| `load_split` (66–83) | Đọc ảnh của 1 tập theo `splits.csv`: chuyển xám (`convert("L")`), resize (`224×224` hoặc `128×128` cho Simple CNN, nội suy bilinear), gom thành tensor `uint8` kích thước (N, 1, H, W). Lưu cache `data/cache_*.pt` để lần sau load nhanh |
+| `XrayDataset.__getitem__` (53–60) | Mỗi lần lấy 1 ảnh: augmentation (nếu bật) → chia 255 về [0, 1] → (nếu model pretrained) nhân thành 3 kênh → chuẩn hóa |
+| Chuẩn hóa (45–48) | CNN tự xây: `(x − 0,5) / 0,25`. MobileNetV3: mean/std của ImageNet `[0,485; 0,456; 0,406] / [0,229; 0,224; 0,225]` vì model được train sẵn với chuẩn hóa này |
+| `make_loader` (86–89) | Chia ảnh thành batch (`DataLoader`); tập train thì xáo trộn (`shuffle=True`) và bật augmentation, val/test thì không |
 
-### Mất cân bằng lớp (trong `train_model`, utils.py)
-COVID ít ảnh nhất → trong loss mỗi lớp có trọng số tỉ lệ nghịch với số ảnh, để mô hình không bỏ qua COVID.
+**Vì sao chuẩn hóa:** đưa giá trị pixel về cùng thang, quanh 0 → gradient ổn định, train nhanh hơn.
 
-## A4. Task 2 – Simple CNN (`2_simple_cnn.py`, model `SimpleCNN` trong models.py)
+### 2.5 Tăng cường dữ liệu (augmentation) – `train_augment` (utils.py 32–36)
+Chỉ áp dụng cho **tập train**, mỗi epoch ảnh bị biến đổi ngẫu nhiên khác nhau:
+- `RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.9, 1.1))`: xoay ±10°, dịch tối đa 5%, phóng to / thu nhỏ 90–110%.
+- `ColorJitter(brightness=0.2, contrast=0.2)`: đổi độ sáng, độ tương phản ±20%.
+- **Không lật ngang:** tim nằm bên trái, lật ngang tạo ra ảnh sai giải phẫu.
 
-Kiến trúc nhóm tự thiết kế trong notebook (Keras), chuyển sang PyTorch, giữ nguyên comment:
+**Mục đích:** model thấy nhiều biến thể hơn → học đặc trưng tổng quát, giảm overfitting.
 
-```
-Input 1×128×128
-→ Conv 32 filter 3×3 + ReLU   → 32×126×126
-→ Conv 32 filter 3×3 + ReLU   → 32×124×124
-→ MaxPool 2×2                 → 32×62×62
-→ Flatten                     → 123.008
-→ Dense 128 + ReLU → Dropout 0.5
-→ Dense 3 (Softmax)
-```
+### 2.6 Mất cân bằng lớp – utils.py 99–102
+COVID ít ảnh nhất (754 so với 997 và 1.172) → mỗi lớp được gán trọng số trong hàm loss:
+`w = tổng số ảnh / (3 × số ảnh của lớp)` → COVID 1,29; NORMAL 0,98; PNEUMONIA 0,83.
+Đoán sai ảnh COVID bị phạt nặng hơn → model không "lười" bỏ qua lớp ít ảnh.
 
-- **15.755.107 tham số** (khớp `model.summary()` trong notebook), gần hết nằm ở lớp Dense sau Flatten.
-- Không gọi softmax trong model vì `CrossEntropyLoss` của PyTorch đã tự làm.
+---
 
-**Chọn cỡ ảnh:** thử 128 và 224 → val F1 gần như bằng nhau (0,924 vs 0,927), bản 224 nặng gấp 3 (49,6M tham số) và chậm gấp đôi → chọn **128**.
+## 3. Nội dung 2 – Simple CNN
 
-**Cách train (chung cho mọi model, hàm `train()`):**
-- Optimizer **AdamW**, lr tự giảm (× 0,3) khi val loss không giảm sau 3 epoch.
-- **Early stopping:** val loss không giảm sau 8 epoch thì dừng, giữ model tốt nhất vào `best.pt`.
-- Mixed precision trên GPU RTX 3050.
+### 3.1 Kiến trúc – `SimpleCNN` (models.py 6–23)
 
-**Dò hyperparameter (bước 1 trong `2_simple_cnn.py`):** 3 lr × 2 batch size, chấm trên **tập val**:
-
-| lr | batch | Val F1 |
-|---|---|---|
-| 0,003 | 32 | 0,19 (không học được) |
-| 0,003 | 64 | 0,937 |
-| 0,001 | 32 | 0,924 |
-| **0,001** | **64** | **0,956** ← chọn |
-| 0,0003 | 32 | 0,942 |
-| 0,0003 | 64 | 0,945 |
-
-**Train 2 bản** để xem tác dụng của augmentation: `simple_cnn` (không aug) và `simple_cnn_aug` (có aug).
-
-## A5. Task 3 – Complex CNN (`3_complex_cnn.py`, model `ComplexCNN` trong models.py)
-
-Kết hợp 2 loại khối:
-- **Inception** (GoogLeNet): 4 nhánh song song (conv 1×1; 1×1→3×3; 1×1→5×5; maxpool→1×1) rồi ghép theo kênh → nhìn chi tiết nhiều kích thước cùng lúc.
-- **Residual** (ResNet): `đầu ra = F(x) + x`, đường tắt giúp gradient truyền ngược dễ, train được mạng sâu hơn.
-
-```
-Input 1×224×224
-→ Stem: Conv 7×7 → MaxPool → Conv 1×1 → Conv 3×3 → MaxPool   (→ 28×28)
-→ 2 khối Inception (128, 224 kênh) → MaxPool                  (→ 14×14)
-→ 4 khối Residual (256, 256, 384, 384 kênh)                   (→ 7×7)
-→ Global AvgPool → Dropout → Dense 128 → Dropout → Dense 3
-```
-Mỗi conv có BatchNorm + ReLU. ~**7,6 triệu** tham số. Train lr 0,001, batch 32, có aug.
-
-## A6. Task 4 – Transfer Learning (`4_transfer_learning.py`)
-
-Dùng model đã train sẵn trên ImageNet (1,2 triệu ảnh):
-- **MobileNetV3-Large**: 4,2 triệu tham số, nhẹ và nhanh
-
-Thay lớp cuối bằng lớp mới 3 đầu ra, train **2 giai đoạn**:
-1. **5 epoch đầu (feature extraction):** đóng băng toàn bộ thân, chỉ train lớp mới, lr 0,001.
-2. **Fine-tuning:** mở khóa tầng cuối (`unfreeze_last_stages`: 4 khối cuối MobileNetV3), train tiếp với lr nhỏ 0,0001 để không phá những gì đã học.
-
-## A7. Task 5 – Đánh giá (`evaluate_model` trong utils.py, `5_predict.py`, `6_figures.py`)
-
-Mỗi model chấm **1 lần** trên tập test (627 ảnh): Accuracy, Precision / Recall / F1 (trung bình macro 3 lớp), Confusion matrix → lưu vào `metrics_test.json`.
-
-| Mô hình | Accuracy | F1 | Tham số |
+| Lớp | Cấu hình | Output | Tham số |
 |---|---|---|---|
-| Simple CNN | 0,9490 | 0,9504 | 15,8M |
-| Simple CNN + Aug | 0,9474 | 0,9498 | 15,8M |
-| Complex CNN + Aug | 0,9569 | 0,9596 | 7,6M |
-| **MobileNetV3 TL** | **0,9761** | **0,9781** | 4,2M |
+| Input | ảnh xám 128×128 | 1×128×128 | 0 |
+| Conv2d + ReLU | 32 kernel 3×3, stride 1, không padding | 32×126×126 | 320 |
+| Conv2d + ReLU | 32 kernel 3×3 | 32×124×124 | 9.248 |
+| MaxPool2d | 2×2 | 32×62×62 | 0 |
+| Flatten | | 123.008 | 0 |
+| Linear + ReLU | 128 neuron | 128 | 15.745.152 |
+| Dropout | p = 0,5 | 128 | 0 |
+| Linear | 3 neuron (3 lớp) | 3 | 387 |
+| **Tổng** | | | **15.755.107** |
 
-**Đọc kết quả:**
-- **Transfer learning thắng rõ**: chỉ ~2.900 ảnh train, quá ít để mạng train từ đầu bằng được mạng đã học sẵn từ 1,2 triệu ảnh.
-- **Complex CNN tốt hơn Simple CNN** dù ít tham số hơn một nửa.
-- **Augmentation không tăng điểm test** nhưng chống overfit: không aug thì val loss ngừng giảm từ epoch 4; có aug thì còn cải thiện tới epoch 22.
+**Cách tính:**
+- Kích thước: `W_out = (W − K + 2P) / S + 1` → (128 − 3 + 0)/1 + 1 = 126 → 124 → MaxPool 2×2 → 62. Trong code: `size = (img_size − 4) // 2` (dòng 14).
+- Tham số conv 1: (3×3×1 + 1) × 32 = 320. Conv 2: (3×3×32 + 1) × 32 = 9.248.
+- Linear 1: 123.008 × 128 + 128 = 15.745.152 → **gần hết tham số nằm ở lớp Dense sau Flatten**.
+- Lớp cuối **không có Softmax** trong code vì `nn.CrossEntropyLoss` của PyTorch đã tự tính softmax bên trong. Khi dự đoán thì gọi `torch.softmax` để ra xác suất (utils.py dòng 177).
 
-**3 câu hỏi của đề tài:**
-1. *Có nhầm COVID với Pneumonia không?* Gần như không. Recall COVID ≥ 0,96 ở mọi model, MobileNetV3 đúng 160/161.
-2. *Lớp nào khó nhất?* Normal ↔ Pneumonia. Lỗi hay gặp nhất: Pneumonia bị đoán thành Normal (10–18/252 ảnh). Đây là âm tính giả, nguy hiểm nhất.
-3. *Mô hình nhìn vào đâu?* **Grad-CAM** tô màu vùng ảnh ảnh hưởng tới quyết định. Ảnh Pneumonia, COVID đoán đúng thì sáng trong phổi; nhưng nhiều ảnh (nhất là ảnh sai) lại sáng ở bụng, cơ hoành, cổ.
+### 3.2 Train – `src/2_simple_cnn.py`
+1. **Dò hyperparameter (dòng 6–13):** thử lr ∈ {0,003; 0,001; 0,0003} × batch size ∈ {32; 64} = 6 lần, có augmentation, tối đa 25 epoch, chấm trên **tập val** (không đụng tập test).
 
-**Hạn chế:**
-- Ảnh NORMAL/PNEUMONIA là ảnh trẻ em, ảnh COVID là người lớn từ nguồn khác → mô hình có thể học "đường tắt" (phân biệt nguồn ảnh chứ không phải bệnh).
-- Không có mã bệnh nhân, không chắc 2 ảnh của cùng 1 người không rơi vào 2 tập khác nhau.
-- Mỗi model chỉ train 1 lần với 1 seed.
+| lr | batch | Val acc | Val F1 |
+|---|---|---|---|
+| 0,003 | 32 | 0,4003 | 0,1906 (không học được) |
+| 0,003 | 64 | 0,9346 | 0,9374 |
+| 0,001 | 32 | 0,9219 | 0,9236 |
+| **0,001** | **64** | **0,9537** | **0,9558** ← chọn |
+| 0,0003 | 32 | 0,9394 | 0,9418 |
+| 0,0003 | 64 | 0,9426 | 0,9451 |
 
----
+   lr 0,003 + batch 32 bị hỏng (chỉ đoán 1 lớp) vì lớp Dense 15,7 triệu tham số không ổn định với bước nhảy lớn.
 
-# PHẦN B. GIẢI THÍCH TỪNG FILE
+2. **Train model chính (dòng 15–23):** lr 0,001, batch 64, tối đa 40 epoch, early stopping patience 8, train 2 bản: **không augmentation** (`simple_cnn`) và **có augmentation** (`simple_cnn_aug`) để so sánh tác dụng của augmentation.
 
-Cây thư mục của project:
+### 3.3 Kết quả
 
-```
-nhom3/
-├── .gitignore            danh sách file không đưa lên git
-├── .python-version       phiên bản Python (3.13)
-├── README.md             giới thiệu project trên GitHub
-├── pyproject.toml        cấu hình project + thư viện
-├── uv.lock               khóa phiên bản thư viện (tự sinh)
-├── .venv/                môi trường Python (tự sinh, không lên git)
-├── data/                 danh sách ảnh sau khi làm sạch + cache ảnh
-├── doc/                  tài liệu (file này + đề xuất đề tài)
-├── results/              kết quả train, số liệu, hình cho báo cáo
-└── src/                  toàn bộ code
-```
+| | Accuracy | F1 | Epoch tốt nhất / đã chạy | Thời gian |
+|---|---|---|---|---|
+| Simple CNN | 0,9490 | 0,9504 | 4 / 12 | 31 s |
+| Simple CNN + Aug | 0,9474 | 0,9498 | 22 / 30 | 142 s |
 
-Ký hiệu: **[git]** = có trên GitHub, **[máy]** = chỉ có trên máy (tự sinh, không lên git).
+Confusion matrix (hàng = nhãn thật, cột = đoán; thứ tự COVID / NORMAL / PNEUMONIA):
+- Simple CNN: `[157 3 1] [3 202 9] [4 12 236]`
+- Simple CNN + Aug: `[157 2 2] [2 206 6] [3 18 231]`
 
----
-
-## B1. Các file ở thư mục gốc
-
-### .gitignore [git]
-Liệt kê những thứ git bỏ qua, không đưa lên GitHub:
-- `.venv/`: môi trường Python, mỗi người tự tạo bằng `uv sync`
-- `__pycache__/`: file Python tự dịch sẵn
-- `data/cache_*.pt`: ảnh đã resize (~280 MB)
-- `results/**/best.pt`: trọng số mô hình (nặng, có file 94 MB)
-- `results/**/*.npy`: xác suất dự đoán
-- `*.log`: file log
-
-### .python-version [git]
-Chỉ có 1 dòng `3.13`, báo cho `uv` dùng Python 3.13.
-
-### README.md [git]
-Trang GitHub hiện ra đầu tiên khi mở repo: tên bài toán, link dataset, cách cài (`uv sync`), 4 lệnh chạy.
-Không xoá được vì `pyproject.toml` có dòng `readme = "README.md"`, thiếu file thì `uv sync` lỗi.
-
-### pyproject.toml [git]
-File cấu hình chính, `uv` đọc file này để biết cài gì, chạy gì:
-- `[project]`: tên `nhom3`, mô tả, 4 thành viên, cần Python ≥ 3.13.
-- `dependencies`: 7 thư viện code dùng thật:
-  - `torch`, `torchvision`: xây và train mạng CNN, có sẵn MobileNetV3
-  - `numpy`: tính toán mảng
-  - `pillow`: đọc ảnh PNG
-  - `scikit-learn`: tính accuracy, precision, recall, F1, confusion matrix
-  - `matplotlib`: vẽ hình
-  - `kagglehub`: tải dataset từ Kaggle
-- `[tool.uv.sources]`, `[[tool.uv.index]]`: tải torch bản CUDA 12.8 (chạy GPU NVIDIA) thay vì bản thường.
-
-Sửa file này xong phải chạy `uv sync` để `uv.lock` cập nhật theo.
-
-### uv.lock [git] — tự sinh, không cần để tâm
-Ghi chính xác phiên bản của toàn bộ thư viện (kể cả thư viện phụ) để cả nhóm `uv sync` ra môi trường giống hệt nhau, tránh "máy t chạy được máy m không". Không sửa tay.
-
-### .venv/ [máy] — tự sinh, không cần để tâm
-Môi trường Python riêng của project (~4,5 GB), do `uv sync` tạo ra. Xoá đi thì chạy `uv sync` là có lại.
-- `Lib/`: chứa các thư viện đã cài, nặng nhất (torch chiếm phần lớn)
-- `Scripts/`: file chạy được: `python.exe` (Python của project), `activate` (bật môi trường bằng tay)
-- `etc/`, `share/`: file phụ vài thư viện tự thêm vào
-- `pyvenv.cfg`: ghi môi trường dùng Python bản nào, ở đâu
-- `.gitignore` (chứa `*`), `.lock`, `CACHEDIR.TAG`: file đánh dấu của `uv`
+**Nhận xét:**
+- Augmentation **không tăng điểm test** (gần như bằng nhau) nhưng **giảm overfitting**: không aug thì train loss về gần 0 còn val loss ngừng giảm từ epoch 4 (dừng ở epoch 12); có aug thì 2 đường cong sát nhau, còn cải thiện tới epoch 22.
+- Model nhỏ về số lớp nhưng nặng về tham số vì Flatten nối thẳng vào Dense. Muốn nhẹ hơn: thêm conv/pooling hoặc dùng Global Average Pooling.
 
 ---
 
-## B2. data/
+## 4. Nội dung 3 – Complex CNN
 
-### splits.csv [git] — cần nộp
-Danh sách **4.177 ảnh đã làm sạch**, mỗi dòng 3 cột: tên file, lớp, thuộc tập nào. Ví dụ:
-```
-file,label,split
-COVID/COVID_10.png,COVID,train
-```
-Tạo bởi `1_preprocess.py`. Mọi model đều đọc file này để lấy ảnh → tất cả dùng chung một cách chia, ai chạy lại cũng ra giống nhau.
+### 4.1 Ý tưởng
+Ghép 2 loại khối nổi tiếng:
+- **Khối Inception** (từ GoogLeNet) – `InceptionBlock` (models.py 34–44): 4 nhánh song song trên cùng input rồi **nối theo chiều kênh** (`torch.cat(..., dim=1)`):
+  - b1: conv 1×1
+  - b2: conv 1×1 (giảm kênh) → conv 3×3
+  - b3: conv 1×1 (giảm kênh) → conv 5×5
+  - b4: maxpool 3×3 (stride 1) → conv 1×1
+  → nhìn chi tiết ở nhiều kích thước cùng lúc; conv 1×1 giảm số kênh trước conv lớn để bớt tham số.
+- **Khối Residual** (từ ResNet) – `ResidualBlock` (models.py 47–60): 2 conv 3×3 có BatchNorm (`body`) + **đường tắt** (`shortcut`): `output = ReLU(F(x) + x)`. Khi số kênh / kích thước thay đổi thì đường tắt dùng conv 1×1 để khớp kích thước. Đường tắt giúp gradient truyền ngược dễ → train mạng sâu không bị suy giảm.
+- `conv_bn` (models.py 26–31): Conv + **BatchNorm** + ReLU, dùng ở mọi nơi. `padding = k // 2` để giữ nguyên kích thước (với stride 1).
 
-### cleaning_summary.json [git] — cần nộp
-Kết quả làm sạch, tạo bởi `1_preprocess.py`:
-- `raw`: số ảnh gốc mỗi lớp (1.626 / 1.802 / 1.800)
-- `corrupt`: 0 ảnh lỗi
-- `exact_dups`: 229 ảnh trùng hoàn toàn
-- `near_dups`: 819 ảnh gần trùng
-- `label_conflicts`: 3 ảnh trùng nhưng khác nhãn
-- `clean`: số ảnh còn lại mỗi lớp (1.077 / 1.425 / 1.675)
-- `split`: số ảnh mỗi lớp trong train / val / test
+### 4.2 Kiến trúc – `ComplexCNN` (models.py 63–89)
 
-Hình `class_distribution.png` và số liệu phần dataset trong báo cáo lấy từ file này.
+| Phần | Cấu hình | Output | Tham số |
+|---|---|---|---|
+| Input | ảnh xám 224×224 | 1×224×224 | |
+| **stem** | conv 7×7 stride 2 (32) → maxpool 3×3/2 → conv 1×1 (64) → conv 3×3 (96) → maxpool 3×3/2 | 96×28×28 | 59.296 |
+| Inception A | nhánh 32 / 48→64 / 8→16 / 16 | 128×28×28 | 41.200 |
+| Inception B | nhánh 64 / 64→96 / 16→32 / 32 | 224×28×28 | 91.232 |
+| MaxPool | 3×3 stride 2 | 224×14×14 | 0 |
+| Residual 1 | 224→256 (shortcut conv 1×1) | 256×14×14 | 1.164.800 |
+| Residual 2 | 256→256 (shortcut identity) | 256×14×14 | 1.180.672 |
+| Residual 3 | 256→384, stride 2 | 384×7×7 | 2.312.448 |
+| Residual 4 | 384→384 | 384×7×7 | 2.655.744 |
+| **head** | Global AvgPool → Dropout 0,4 → Linear 128 + ReLU → Dropout 0,3 → Linear 3 | 3 | 49.667 |
+| **Tổng** | | | **7.555.059** |
 
-### cache_train_224.pt, cache_val_224.pt, cache_test_224.pt, cache_*_128.pt [máy] — tự sinh, không cần để tâm
-Ảnh đã chuyển xám và resize sẵn, lưu dạng tensor PyTorch. Lần đầu chạy, code đọc 4.177 file PNG (chậm) rồi lưu ra đây; các lần sau load thẳng file này (nhanh).
-- `_224`: cho Complex CNN, MobileNetV3
-- `_128`: cho Simple CNN
+- Số kênh ra của Inception = tổng kênh 4 nhánh: A = 32 + 64 + 16 + 16 = 128; B = 64 + 96 + 32 + 32 = 224.
+- **Global Average Pooling** lấy trung bình mỗi feature map 7×7 → 1 số → vector 384 → lớp Dense rất nhỏ. Nhờ vậy Complex CNN sâu hơn nhiều nhưng ít tham số hơn Simple CNN.
 
-Xoá đi thì lần chạy sau tự tạo lại.
+### 4.3 Train – `src/3_complex_cnn.py`
+Ảnh 224×224, có augmentation, lr 0,001, batch 32, tối đa 40 epoch, early stopping patience 8.
+
+### 4.4 Kết quả
+- Accuracy **0,9569**, F1 **0,9596**, epoch tốt nhất 26 / 34, 370 s.
+- Confusion matrix: `[156 0 5] [1 209 4] [0 17 235]` → nhầm 5 ảnh COVID thành PNEUMONIA, 17 ảnh PNEUMONIA thành NORMAL.
+- Tốt hơn Simple CNN (F1 0,9596 so với 0,9498) dù ít tham số hơn một nửa. Val loss dao động mạnh mấy epoch đầu → model lớn, dữ liệu ít.
 
 ---
 
-## B3. doc/
+## 5. Nội dung 4 – Transfer Learning / Fine-tuning (MobileNetV3)
 
-### GIAI_THICH_CODE.md [git]
-File bạn đang đọc: tổng quan project + giải thích từng file.
+### 5.1 Ý tưởng
+Dùng **MobileNetV3-Large đã train sẵn trên ImageNet** (1,2 triệu ảnh, 1.000 lớp). Các lớp đầu đã biết nhận cạnh, góc, kết cấu → dùng lại được cho X-quang, chỉ cần dạy lại phần cuối. Phù hợp khi dữ liệu ít (2.923 ảnh train).
 
-### readme.md [git]
-Đề xuất đề tài do nhóm viết (tiếng Việt): bài toán, các việc chính, điểm hay của topic (3 câu hỏi phân tích), hướng phát triển (Transfer Learning, Grad-CAM), lý do chọn, mục tiêu.
+MobileNetV3 dùng **depthwise separable convolution** và khối **inverted residual** → nhẹ (4,2 triệu tham số) và nhanh.
+
+### 5.2 Kiến trúc – models.py 92–103
+- `mobilenet_transfer` (92–97): tải model với trọng số `IMAGENET1K_V2`, **đóng băng toàn bộ** (`requires_grad = False`), thay lớp cuối `classifier[-1]` thành `Linear(1280, 3)`.
+- Cấu trúc: `features` (17 khối, ra 960×7×7) → Global AvgPool → classifier: Linear 960→1280 → Hardswish → Dropout 0,2 → **Linear 1280→3 (mới)**.
+- Ảnh xám được **nhân thành 3 kênh** (utils.py dòng 59) và chuẩn hóa theo ImageNet vì model gốc nhận ảnh màu.
+- `unfreeze_last_stages` (100–103): mở khóa **4 khối cuối** của `features` (3 khối inverted residual + conv 1×1 ra 960 kênh).
+
+### 5.3 Train 2 giai đoạn – `src/4_transfer_learning.py` + utils.py 113–123
+1. **Feature extraction (5 epoch đầu, `head_epochs=5`):** chỉ train lớp mới Linear 1280→3 (**3.843 tham số**), lr 0,001. Giai đoạn này không dừng sớm.
+2. **Fine-tuning (từ epoch 6):** `train_model` gọi `unfreeze(model)` mở khóa 4 khối cuối, tạo optimizer mới với **lr nhỏ 0,0001** (`finetune_lr`), số tham số được train tăng lên **2.183.307**. Tối đa 30 epoch tổng, early stopping patience 8.
+
+**Vì sao lr nhỏ khi fine-tune:** trọng số đã tốt sẵn, lr lớn sẽ phá hỏng những gì model đã học. **Vì sao chỉ mở tầng cuối:** tầng đầu học đặc trưng chung (cạnh, vân) dùng tốt cho mọi ảnh; tầng cuối đặc thù cho ImageNet nên cần chỉnh lại; dữ liệu ít nên mở hết dễ overfit.
+
+### 5.4 Kết quả
+- Accuracy **0,9761**, Precision 0,9780, Recall 0,9785, F1 **0,9781**, epoch tốt nhất 16 / 24, 278 s.
+- Confusion matrix: `[160 1 0] [0 210 4] [0 10 242]` → đúng 160/161 ảnh COVID, không nhầm COVID ↔ PNEUMONIA; lỗi chính: 10 ảnh PNEUMONIA bị đoán NORMAL.
+- **Tốt nhất trong 4 model**, cao hơn 2 CNN tự xây khoảng 2–3 điểm, vì đã học đặc trưng từ 1,2 triệu ảnh.
 
 ---
 
-## B4. src/ — code
+## 6. Train và đánh giá (dùng chung cho cả 3 phần)
 
-**Mỗi file đánh số chạy thẳng từ trên xuống**, chia bước `# 1.`, `# 2.`... Hàm chỉ có trong `utils.py` (vì PyTorch không có sẵn `model.fit()` / `model.evaluate()` như Keras nên nhóm tự viết 1 lần, các file dùng chung).
+### 6.1 Vòng train – `train_model` (utils.py 92–169)
+PyTorch không có sẵn `model.fit()` như Keras nên tự viết:
 
-### 1_preprocess.py — Task 1: làm sạch + chia tập
-Chạy: `uv run python src/1_preprocess.py`
-1. Đọc danh sách 5.228 ảnh
-2. Bỏ ảnh lỗi (mở thử, lỗi thì bỏ)
-3. Bỏ ảnh trùng hoàn toàn (so mã MD5)
-4. Bỏ ảnh gần trùng: mỗi ảnh → "dấu vân tay" 16×16 (dHash); 2 ảnh khác nhau ≤ 4 bit coi là 1 ảnh, gom nhóm (hàm nhỏ `find`), mỗi nhóm giữ 1; nhóm lẫn nhãn thì bỏ cả nhóm
-5. Chia 70/15/15 riêng từng lớp, seed 42
-6. Lưu `data/splits.csv` + `data/cleaning_summary.json`
-
-### 2_simple_cnn.py — Task 2: Simple CNN
-Chạy: `uv run python src/2_simple_cnn.py`
-1. Dò lr (0,003 / 0,001 / 0,0003) × batch size (32 / 64), 6 lần train, chấm trên tập val → kết quả vào `results/tune_simple_*`
-2. Train model chính với lr 0,001, batch 64 (tốt nhất), 2 bản: không aug (`simple_cnn`) và có aug (`simple_cnn_aug`)
-3. Đánh giá trên tập test và val
-
-### 3_complex_cnn.py — Task 3: Complex CNN
-Chạy: `uv run python src/3_complex_cnn.py`
-1. Cấu hình: ảnh 224, có aug, lr 0,001, batch 32
-2. Build model `ComplexCNN`
-3. Train, lưu `results/complex_cnn_aug/best.pt`
-4. Đánh giá test + val
-
-### 4_transfer_learning.py — Task 4: MobileNetV3
-Chạy: `uv run python src/4_transfer_learning.py`
-1. Cấu hình: ảnh 224 nhân 3 kênh, có aug; 5 epoch đầu chỉ train lớp cuối (lr 0,001), sau đó fine-tune (lr 0,0001)
-2. Build model pretrained, đóng băng hết, thay lớp cuối thành 3 đầu ra
-3. Train 2 giai đoạn (tới epoch 6 gọi `unfreeze_last_stages` mở khóa tầng cuối)
-4. Đánh giá test + val
-
-### 5_predict.py — dùng model đã lưu để dự đoán (cho buổi vấn đáp)
-**Không train lại**, chỉ mở file model đã lưu rồi dự đoán. Bên sklearn lưu model bằng `pickle`, bên mình (PyTorch) lưu bằng `torch.save` thành `best.pt` ngay lúc train.
-1. Tạo 4 model rỗng
-2. Nạp trọng số từ `results/<model>/best.pt`
-3. `uv run python src/5_predict.py` → dự đoán 627 ảnh test, in bảng Accuracy / Precision / Recall / F1 (~20 giây)
-   `uv run python src/5_predict.py anh.png` → đoán 1 ảnh bằng cả 4 model, in lớp + xác suất
-4. In confusion matrix từng model
-
-**Trước giờ vấn đáp:** mở terminal ở thư mục `nhom3`, chạy `uv run python src/5_predict.py`, để nguyên màn hình kết quả. Cần có các file `best.pt` (chỉ có trên máy đã train, không có trên git).
-
-### 6_figures.py — vẽ hình cho báo cáo
-Chạy: `uv run python src/6_figures.py` (cần train xong trước). Các bước:
-1. `class_distribution.png`: số ảnh trước / sau làm sạch
-2. `samples.png`: ảnh mẫu mỗi lớp
-3. `augmentation.png`: ví dụ augmentation
-4. `arch_*.png`: sơ đồ kiến trúc 3 model (hàm phụ `draw_stack` vẽ các ô xếp chồng)
-5. `training_curves.png`: đường cong loss / accuracy
-6. `confusion_matrices.png`
-7. `results_tables.md`: bảng kết quả
-8. `gradcam_*.png`: Grad-CAM của Complex CNN và MobileNetV3 (lấy gradient của lớp đoán theo feature map lớp conv cuối → heatmap)
-
-### notebook.py — viết lại cả 6 file 1_ → 6_ thành 1 notebook marimo
-Mở: `uv run marimo edit src/notebook.py` (mở trên trình duyệt).
-- Code của 6 file được chép thẳng vào notebook, chia thành các cell theo từng bước `# 1.`, `# 2.`... (không gọi sang file .py). Các file 1_ → 6_ vẫn giữ nguyên, chạy riêng được như cũ.
-- Phần 1 (tiền xử lý) và các phần train (2, 3, 4) **chỉ chạy khi bấm nút**, mở notebook ra không bị train lại; không bấm thì notebook dùng kết quả đã lưu.
-- Phần 5 tự nạp `best.pt`, hiện bảng điểm + confusion matrix trên tập test; có ô nhập đường dẫn 1 ảnh để dự đoán.
-- Phần 6 vẽ lại toàn bộ hình vào `results/figures/` và hiện ra ngay trong notebook.
-
-### models.py — 3 model
-
-| Class / hàm | Làm gì |
+| Dòng | Làm gì |
 |---|---|
-| `SimpleCNN` | Model nhóm thiết kế: Conv 32 → Conv 32 → MaxPool → Flatten → Dense 128 → Dropout 0,5 → Dense 3. Ảnh 128×128, 15,8M tham số |
-| `conv_bn` | Viết tắt Conv + BatchNorm + ReLU, dùng trong Complex CNN |
-| `InceptionBlock` | 4 nhánh song song (`b1`–`b4`) rồi ghép theo kênh |
-| `ResidualBlock` | 2 conv 3×3 (`body`) + đường tắt (`shortcut`), đầu ra = body(x) + shortcut(x) |
-| `ComplexCNN` | `stem` → `inception` (2 khối) → `residual` (4 khối) → `head`. 7,6M tham số |
-| `mobilenet_transfer` | Tải MobileNetV3 pretrained ImageNet, đóng băng hết, thay lớp cuối thành 3 đầu ra |
-| `unfreeze_last_stages` | Mở khóa 4 khối cuối MobileNetV3 để fine-tune |
+| 96–97 | Tạo DataLoader train (có aug, xáo trộn) và val |
+| 99–102 | Hàm loss **CrossEntropy có trọng số lớp** |
+| 103 | `GradScaler`: mixed precision trên GPU cho nhanh |
+| 105–107 | Optimizer **AdamW** (Adam + weight decay 1e-4) + **ReduceLROnPlateau** (val loss không giảm 3 epoch → lr × 0,3) |
+| 113–123 | Mỗi epoch: xác định giai đoạn (`full` / `head` / `finetune`); TL tới epoch `head_epochs` thì mở khóa tầng cuối, đổi lr nhỏ |
+| 126–143 | Chạy tập train (`model.train(True)`: bật Dropout, BatchNorm cập nhật) rồi tập val (`train(False)`, không tính gradient). Mỗi batch: forward → loss → `zero_grad` → `backward` (tính gradient) → `optimizer.step` (cập nhật trọng số) |
+| 145–148 | Cập nhật lr theo val loss, lưu lịch sử, in 1 dòng log |
+| 150–156 | **Early stopping:** val loss tốt nhất từ trước tới giờ → lưu `best.pt`; không cải thiện `patience` epoch liền → dừng |
+| 158–168 | Ghi `meta.json`, `history.json`; nạp lại `best.pt` (bản tốt nhất) |
 
-### utils.py — phần dùng chung
+### 6.2 Đánh giá – `predict`, `evaluate_model` (utils.py 172–197)
+- `predict`: `model.eval()`, không tính gradient (`@torch.no_grad()`), chạy cả tập, `softmax` ra xác suất 3 lớp.
+- Lớp đoán = lớp có xác suất lớn nhất (`argmax`).
+- `evaluate_model`: tính bằng sklearn và lưu `metrics_test.json`:
+  - **Accuracy** = số ảnh đúng / tổng số ảnh.
+  - **Precision (lớp X)** = trong các ảnh đoán là X, bao nhiêu % đúng là X.
+  - **Recall (lớp X)** = trong các ảnh thật là X, tìm ra bao nhiêu %.
+  - **F1** = 2·P·R / (P + R).
+  - **Macro** = tính cho từng lớp rồi lấy trung bình cộng (3 lớp quan trọng như nhau).
+  - **Confusion matrix**: hàng = nhãn thật, cột = nhãn đoán, đường chéo = đoán đúng.
 
-| Hàm / class | Làm gì |
+### 6.3 Phân tích chung
+- **Nhầm COVID với Pneumonia?** Gần như không: recall COVID ≥ 0,96 ở mọi model, MobileNetV3 đúng 160/161.
+- **Lớp khó nhất:** NORMAL ↔ PNEUMONIA. Lỗi hay gặp nhất: PNEUMONIA bị đoán NORMAL (10–18/252 tùy model) = âm tính giả, nguy hiểm nhất trong y khoa.
+- **Grad-CAM** (6_figures.py): tô màu vùng ảnh ảnh hưởng nhiều tới quyết định (dùng gradient của lớp được đoán theo feature map lớp conv cuối). Ảnh đoán đúng thường sáng trong phổi; một số ảnh (nhất là ảnh sai) sáng ở cổ, bụng, cơ hoành → model đôi khi dựa vào chi tiết không liên quan tới bệnh.
+
+### 6.4 Hạn chế
+- Ảnh COVID có vẻ đến từ nguồn khác ảnh NORMAL / PNEUMONIA (kiểu chụp, chữ đánh dấu khác nhau); nhiều ảnh NORMAL / PNEUMONIA trông như ảnh trẻ em, nhưng dataset không có thông tin tuổi / nguồn nên không kiểm tra được từng ảnh → model có thể một phần học "nguồn ảnh" thay vì bệnh.
+- Không có mã bệnh nhân → 2 ảnh khác nhau của cùng 1 người vẫn có thể rơi vào 2 tập khác nhau.
+- Mỗi model chỉ train 1 lần với 1 seed → chênh lệch nhỏ giữa các model chưa chắc chắn.
+- Chỉ là bài tập học thuật, không dùng chẩn đoán thật.
+
+---
+
+## 7. Lý thuyết – trả lời 15 câu
+
+### Part 1. Basic CNN
+
+**Câu 1. Mục đích của lớp tích chập (convolutional layer), output tính thế nào?**
+- Mục đích: tự học các đặc trưng cục bộ của ảnh (cạnh, góc, vân → các cấu trúc lớn hơn ở lớp sâu). Nhờ **chia sẻ trọng số** (1 kernel dùng cho mọi vị trí) nên ít tham số hơn lớp fully connected và nhận ra đặc trưng ở bất kỳ vị trí nào.
+- Cách tính: trượt kernel K×K trên input; tại mỗi vị trí nhân từng phần tử của kernel với vùng ảnh tương ứng, cộng lại, cộng bias → 1 giá trị của feature map. Nhiều kênh vào thì cộng kết quả của tất cả các kênh.
+- Kích thước output: `(W − K + 2P) / S + 1`. Ví dụ code: 128×128, kernel 3, P = 0, S = 1 → 126×126.
+
+**Câu 2. Mục đích của lớp pooling, max pooling hoạt động thế nào?**
+- Mục đích: giảm kích thước feature map → giảm tính toán và tham số lớp sau, giúp model ít nhạy với dịch chuyển nhỏ, giảm overfitting. Pooling **không có tham số học**.
+- Max pooling: chia feature map thành các ô (vd 2×2, stride 2), mỗi ô lấy **giá trị lớn nhất** → kích thước giảm một nửa. Ví dụ code: 124×124 → 62×62.
+
+**Câu 3. Max pooling khác average pooling thế nào?**
+- Max pooling lấy giá trị **lớn nhất** trong ô → giữ đặc trưng nổi bật nhất (phản ứng mạnh nhất của bộ lọc).
+- Average pooling lấy **trung bình** → làm mượt, giữ thông tin chung của cả vùng.
+- Global average pooling: lấy trung bình cả feature map → 1 số mỗi kênh (dùng trong Complex CNN, MobileNetV3, NiN, GoogLeNet).
+
+**Câu 4. Padding và stride là gì?**
+- **Padding (P):** thêm viền (thường là số 0) quanh input để giữ kích thước output và không bỏ mất thông tin ở biên. Kernel K lẻ, stride 1 thì P = (K−1)/2 giữ nguyên kích thước (code `conv_bn`: `padding = k // 2`).
+- **Stride (S):** bước nhảy của kernel mỗi lần trượt. S = 2 → output giảm khoảng một nửa (code: conv 7×7 stride 2 đưa 224 → 112).
+
+**Câu 5. Lớp conv có n ma trận input và 1 ma trận output cần bao nhiêu ma trận kernel thành phần?**
+- **n** ma trận kernel (mỗi kênh input 1 kernel). Tích chập từng kênh với kernel riêng của nó rồi **cộng n kết quả** lại (+ bias) → 1 ma trận output.
+
+**Câu 6. n ma trận input, m ma trận output cần bao nhiêu?**
+- **n × m** ma trận kernel (mỗi output cần n kernel, có m output). Tensor trọng số có kích thước m × n × K × K. Ví dụ code: conv 2 của Simple CNN có n = 32, m = 32 → 1.024 kernel 3×3 (= 9.216 trọng số + 32 bias = 9.248 tham số).
+
+**Câu 7. LeNet-5 là gì, thiết kế cho bài toán nào?**
+- Một trong những CNN đầu tiên (LeCun và cộng sự, 1998), dùng để **nhận dạng chữ số viết tay** (đọc mã bưu điện, séc ngân hàng, bộ MNIST).
+- Kiến trúc: conv 5×5 (6 kênh) → pooling → conv 5×5 (16 kênh) → pooling → 3 lớp fully connected (120 → 84 → 10), dùng sigmoid. Đặt nền móng cho kiểu "conv – pool – … – fully connected". Simple CNN của nhóm cũng theo kiểu này.
+
+**Câu 8. Training set, validation set, test set khác nhau thế nào?**
+- **Train:** dữ liệu để model học, cập nhật trọng số.
+- **Validation:** đánh giá trong lúc train để chọn hyperparameter (lr, batch size), quyết định dừng sớm, chọn model tốt nhất. Model không học trên tập này.
+- **Test:** dữ liệu model chưa từng thấy, chỉ dùng **1 lần ở cuối** để báo cáo kết quả khách quan.
+- Nhóm chia 70 / 15 / 15 theo từng lớp, sau khi bỏ ảnh trùng để 3 tập không có ảnh chung.
+
+### Part 2. Modern CNN
+
+**Câu 9. Đặc điểm chính của AlexNet?**
+- Thắng ImageNet 2012, mở đầu thời kỳ deep learning cho thị giác máy tính.
+- 8 lớp: 5 conv + 3 fully connected, sâu và rộng hơn LeNet nhiều; conv đầu 11×11 stride 4.
+- Dùng **ReLU** thay sigmoid (train nhanh, giảm vanishing gradient), **Dropout** ở lớp fully connected, **data augmentation** (lật, cắt, đổi màu), max pooling chồng lấn, train trên **GPU**.
+
+**Câu 10. Khối VGG là gì?**
+- Một dãy các **conv 3×3** (padding 1, giữ kích thước) + ReLU, kết thúc bằng **max pooling 2×2 stride 2** (giảm một nửa kích thước).
+- Mạng VGG = xếp nhiều khối như vậy + fully connected. Ý tưởng: dùng nhiều conv 3×3 nhỏ xếp chồng thay vì 1 conv lớn (2 conv 3×3 nhìn được vùng 5×5 mà ít tham số hơn, thêm phi tuyến). Thiết kế mạng theo khối lặp lại, đơn giản, có quy luật.
+
+**Câu 11. Khối NiN (Network in Network) là gì?**
+- 1 conv thường (K×K) theo sau là **2 conv 1×1** (mỗi cái + ReLU). Conv 1×1 đóng vai trò như lớp fully connected áp dụng cho từng pixel → thêm phi tuyến theo chiều kênh.
+- Mạng NiN **bỏ hẳn lớp fully connected cuối**: khối cuối có số kênh = số lớp, rồi dùng **global average pooling** → giảm mạnh số tham số, ít overfit.
+
+**Câu 12. Khối Inception trong GoogLeNet là gì?**
+- 4 nhánh song song trên cùng input: conv 1×1; conv 1×1 → conv 3×3; conv 1×1 → conv 5×5; max pooling 3×3 → conv 1×1. Kết quả 4 nhánh được **nối theo chiều kênh**.
+- Ý tưởng: trích đặc trưng ở nhiều kích thước cùng lúc; conv 1×1 trước conv lớn để giảm số kênh → bớt tính toán.
+- Complex CNN của nhóm dùng đúng khối này (`InceptionBlock`).
+
+**Câu 13. Mục đích của batch normalization?**
+- Chuẩn hóa output của 1 lớp theo từng mini-batch về trung bình 0, phương sai 1, rồi nhân / cộng với 2 tham số học được (γ, β) để model tự điều chỉnh.
+- Lợi ích: train **ổn định và nhanh hơn**, dùng được learning rate lớn hơn, ít phụ thuộc khởi tạo, có tác dụng điều chuẩn nhẹ.
+- Lúc train dùng mean / variance của batch; lúc dự đoán dùng giá trị trung bình trượt đã lưu (vì vậy phải gọi `model.eval()`).
+- Complex CNN dùng BatchNorm sau mọi conv (`conv_bn`, `ResidualBlock`).
+
+**Câu 14. Ý tưởng chính của ResNet?**
+- **Khối residual:** thay vì học trực tiếp hàm H(x), mỗi khối học phần chênh lệch F(x) = H(x) − x, output = **F(x) + x** (đường tắt – skip connection).
+- Nếu lớp thêm vào không cần thiết, model dễ dàng học F(x) ≈ 0 (giữ nguyên x) → mạng sâu hơn không bị kém đi. Gradient đi thẳng qua đường tắt → tránh vanishing gradient, train được mạng hàng trăm lớp.
+- Khi kích thước / số kênh khác nhau, đường tắt dùng conv 1×1 để khớp. Complex CNN của nhóm dùng khối này (`ResidualBlock`).
+
+**Câu 15. DenseNet khác CNN thông thường thế nào?**
+- CNN thông thường: mỗi lớp chỉ nhận output của lớp ngay trước.
+- DenseNet: trong 1 dense block, mỗi lớp nhận **output của tất cả các lớp trước đó, nối theo chiều kênh (concatenate)**, và output của nó đi tới tất cả các lớp sau.
+- Khác ResNet: ResNet **cộng** (F(x) + x), DenseNet **nối** ([x, F(x)]).
+- Dùng **transition layer** (conv 1×1 + average pooling) giữa các dense block để giảm số kênh và kích thước.
+- Lợi ích: tái sử dụng đặc trưng, gradient truyền tốt, ít tham số cho cùng độ chính xác.
+
+---
+
+## 8. Các file trong repo
+
+| File / thư mục | Nội dung |
 |---|---|
-| `raw_dir()` | Tìm thư mục ảnh gốc (bản đã tải trong `~/.cache/kagglehub`, chưa có thì tải từ Kaggle) |
-| `train_augment()` | Augmentation: xoay ±10°, dịch 5%, zoom 0,9–1,1, sáng / tương phản ±20%, không lật ngang |
-| `XrayDataset` | Trả từng ảnh + nhãn: augmentation (nếu bật) → chia 255 → (nếu pretrained) nhân 3 kênh → chuẩn hóa |
-| `load_split(split, size)` | Đọc ảnh 1 tập theo `splits.csv`, chuyển xám, resize; lưu / đọc cache `data/cache_*.pt` |
-| `make_loader(...)` | Chia ảnh thành batch; tập train thì xáo trộn + augmentation |
-| `train_model(model, cfg)` | **Giống `model.fit()`**: loss có trọng số lớp, AdamW, giảm lr khi val loss đứng yên, early stopping, lưu `best.pt`, ghi `history.json` + `meta.json`; transfer learning thì mở khóa tầng cuối sau 5 epoch |
-| `predict(...)` | Chạy model trên 1 tập, trả nhãn thật + xác suất |
-| `evaluate_model(...)` | **Giống `model.evaluate()`**: accuracy, precision, recall, F1, confusion matrix → `metrics_<tập>.json` + `probs_<tập>.npy` |
-
-## B5. results/
-
-### Thư mục của 4 model chính: simple_cnn, simple_cnn_aug, complex_cnn_aug, mobilenetv3_tl
-Mỗi thư mục có:
-
-| File | Nội dung | |
-|---|---|---|
-| `history.json` | Train loss / acc, val loss / acc, lr và giai đoạn (`full` / `head` / `finetune`) theo từng epoch. Dùng để vẽ đường cong train | [git] |
-| `meta.json` | Cấu hình đã dùng, epoch tốt nhất, số epoch đã chạy, thời gian train, số tham số | [git] |
-| `metrics_test.json` | Kết quả trên tập test: accuracy, precision, recall, F1 (macro), confusion matrix, kết quả từng lớp. **Số trong báo cáo lấy từ đây** | [git] |
-| `metrics_val.json` | Như trên nhưng cho tập val | [git] |
-| `best.pt` | Trọng số model tốt nhất (nặng, 17–61 MB) | [máy] |
-| `probs_test.npy`, `probs_val.npy` | Xác suất model đoán cho từng ảnh, Grad-CAM dùng để chọn ảnh đúng / sai | [máy] |
-
-### 6 thư mục tune_simple_lr*_bs* (vd `tune_simple_lr0.001_bs64`)
-Kết quả 6 lần dò lr × batch size cho Simple CNN. Có `history.json`, `meta.json`, `metrics_val.json` [git] và `best.pt`, `probs_val.npy` [máy]. Chỉ chấm trên tập val (không đụng tập test). Bảng dò tham số trong báo cáo lấy từ đây.
-
-### figures/ [git] — 9 hình cho báo cáo (tạo bởi `6_figures.py`)
-
-| Hình | Nội dung | Mục báo cáo |
-|---|---|---|
-| `samples.png` | Ảnh mẫu mỗi lớp | II |
-| `class_distribution.png` | Số ảnh trước / sau làm sạch | III.1 |
-| `augmentation.png` | Ví dụ augmentation | III.1 |
-| `arch_simple_cnn.png` | Sơ đồ Simple CNN (báo cáo dùng sơ đồ nhóm tự vẽ) | III.2 |
-| `arch_complex_cnn.png` | Sơ đồ Complex CNN + khối Inception + khối Residual | III.3 |
-| `arch_mobilenetv3_tl.png` | Sơ đồ MobileNetV3 TL (xám = đóng băng, xanh = fine-tune) | III.4 |
-| `training_curves.png` | Đường cong loss / accuracy | IV |
-| `confusion_matrices.png` | Confusion matrix 4 model | IV |
-| `gradcam_mobilenetv3_tl.png` | Grad-CAM của MobileNetV3 | IV |
-| `gradcam_complex_cnn_aug.png` | Grad-CAM của Complex CNN (dự phòng) | IV |
-
-### results_tables.md [git]
-3 bảng gom sẵn: kết quả test 4 model, kết quả từng lớp, bảng dò lr × batch. Tiện để chép vào báo cáo.
-
-### train_log.txt [git]
-Log in ra khi train (từng epoch của mọi model), bằng chứng nhóm đã chạy thật. Phần cuối là log train lại Simple CNN (128×128) ngày 11/10.
-
+| `src/1_preprocess.py` | Làm sạch + chia tập (mục 2.3) |
+| `src/2_simple_cnn.py` | Dò lr/batch, train Simple CNN (mục 3) |
+| `src/3_complex_cnn.py` | Train Complex CNN (mục 4) |
+| `src/4_transfer_learning.py` | Train MobileNetV3 (mục 5) |
+| `src/5_predict.py` | Nạp `best.pt`, dự đoán tập test hoặc 1 ảnh |
+| `src/6_figures.py` | Vẽ hình (phân bố lớp, ảnh mẫu, augmentation, kiến trúc, đường cong train, confusion matrix, Grad-CAM) + `results_tables.md` |
+| `src/models.py` | Định nghĩa các model (mục 3.1, 4.2, 5.2) |
+| `src/utils.py` | Đọc ảnh, augmentation, vòng train, đánh giá (mục 2.4–2.6, 6) |
+| `data/splits.csv` | 4.177 ảnh sạch, mỗi ảnh thuộc tập nào |
+| `data/cleaning_summary.json` | Số ảnh bị loại ở mỗi bước |
+| `data/cache_*.pt` | Ảnh đã resize sẵn (tự sinh, không lên git) |
+| `results/<model>/best.pt` | Trọng số model tốt nhất (không lên git, nặng) |
+| `results/<model>/metrics_test.json` | Kết quả trên tập test (số trong báo cáo lấy từ đây) |
+| `results/<model>/history.json`, `meta.json` | Loss/acc từng epoch; cấu hình, thời gian, số tham số |
+| `results/tune_simple_*` | 6 lần dò lr × batch size |
+| `results/figures/` | Hình cho báo cáo |
+| `results/train_log.txt` | Log lúc train |
+| `pyproject.toml`, `uv.lock` | Danh sách thư viện (`uv sync` để cài) |
 
 ---
 
-# PHẦN C. ĐI THEO LUỒNG CODE (file nào gọi file nào)
+## 9. Câu cô có thể hỏi thêm về code
 
-## C1. Bức tranh tổng
-
-```
-                ┌──────────── utils.py ────────────┐      ┌──── models.py ────┐
-                │ đọc ảnh, augmentation,           │      │ SimpleCNN         │
-                │ train_model  (= model.fit)       │      │ ComplexCNN        │
-                │ evaluate_model (= model.evaluate)│      │ MobileNetV3       │
-                │ predict                          │      │                   │
-                └──────────────────────────────────┘      └───────────────────┘
-                         ▲ các file dưới đều "mượn" 2 file này ▲
-
- 1_preprocess.py ──► data/splits.csv ──► 2_simple_cnn.py ──┐
-                                        3_complex_cnn.py ──┼──► results/<model>/best.pt + metrics_*.json
-                                        4_transfer_learning.py ┘          │
-                                                                          ├──► 5_predict.py  (in kết quả ra màn hình)
-                                                                          └──► 6_figures.py  (vẽ hình cho báo cáo)
-```
-
-- `utils.py` và `models.py` **không chạy trực tiếp**, chỉ là "kho đồ nghề" cho các file 1_ → 6_ dùng.
-- Các file 1_ → 6_ là file **chạy**, mỗi file chạy thẳng từ trên xuống.
-- File sau dùng kết quả của file trước: phải có `splits.csv` (từ 1_) mới train được (2_, 3_, 4_); phải có `best.pt` (từ 2_, 3_, 4_) mới predict / vẽ hình được (5_, 6_).
-
----
-
-## C2. Bước 1 — `1_preprocess.py` (chuẩn bị dữ liệu)
-
-Chạy: `uv run python src/1_preprocess.py`
-
-Mượn từ `utils.py`: `raw_dir()` (tìm thư mục ảnh gốc), `CLASSES`, đường dẫn `DATA_DIR`, `SPLIT_CSV`.
-
-| Bước trong file | Làm gì |
+| Câu hỏi | Trả lời ngắn |
 |---|---|
-| `# 1.` | Gọi `raw_dir()` → lấy thư mục ảnh; liệt kê 5.228 file PNG của 3 lớp |
-| `# 2.` | Mở thử từng ảnh, ảnh lỗi thì bỏ (0 ảnh) |
-| `# 3.` | Tính MD5 từng file, trùng thì bỏ (229 ảnh) |
-| `# 4.` | Tính dHash 16×16 cho mỗi ảnh → tính khoảng cách giữa mọi cặp → cặp nào ≤ 4 bit thì gom chung nhóm (hàm `find`) → mỗi nhóm giữ 1 ảnh, nhóm lẫn nhãn thì bỏ (819 + 3 ảnh) |
-| `# 5.` | Xáo trộn từng lớp (seed 42), cắt 70 / 15 / 15 |
-| `# 6.` | Ghi `data/splits.csv` (4.177 dòng) + `data/cleaning_summary.json` |
-
-**Ra:** `data/splits.csv`, `data/cleaning_summary.json`.
-
----
-
-## C3. Bước 2 — `2_simple_cnn.py` (Simple CNN)
-
-Chạy: `uv run python src/2_simple_cnn.py`
-
-Mượn: `SimpleCNN` từ `models.py`; `train_model`, `evaluate_model` từ `utils.py`.
-
-| Bước | Làm gì |
-|---|---|
-| `# 1.` | 2 vòng `for` lồng nhau: thử 3 lr × 2 batch size. Mỗi lần: tạo `cfg` (cấu hình) → tạo `SimpleCNN` → `train_model` → `evaluate_model` trên tập **val** |
-| `# 2.` | Train 2 bản chính (lr 0,001, batch 64): `simple_cnn` (không aug) và `simple_cnn_aug` (có aug) |
-| `# 3.` | `evaluate_model` trên tập **test** và **val** |
-
-`cfg` là 1 dict ghi cấu hình, ví dụ:
-```python
-cfg = dict(name="simple_cnn", augment=False, lr=1e-3, batch_size=64,
-           epochs=40, patience=8, img_size=128, rgb=False)
-```
-- `name`: tên thư mục kết quả trong `results/`
-- `augment`: có augmentation không
-- `epochs`: số epoch tối đa; `patience`: bao nhiêu epoch không tiến bộ thì dừng
-- `img_size`: cỡ ảnh; `rgb`: có nhân 3 kênh không (chỉ model pretrained mới cần)
-
-**Ra:** `results/tune_simple_*/`, `results/simple_cnn/`, `results/simple_cnn_aug/`.
-
----
-
-## C4. Bước 3 — `3_complex_cnn.py` (Complex CNN)
-
-Giống bước 2 nhưng ngắn hơn, chỉ 1 model:
-1. Tạo `cfg` (ảnh 224, có aug, lr 0,001, batch 32)
-2. `model = ComplexCNN()`
-3. `train_model(model, cfg)`
-4. `evaluate_model` trên test + val
-
-**Ra:** `results/complex_cnn_aug/`.
-
----
-
-## C5. Bước 4 — `4_transfer_learning.py` (MobileNetV3)
-
-1. Tạo `cfg`: thêm `rgb=True` (nhân 3 kênh), `head_epochs=5`, `finetune_lr=1e-4`
-2. `model = mobilenet_transfer()`: tải model pretrained, đóng băng, thay lớp cuối
-3. `train_model(model, cfg, unfreeze=unfreeze_last_stages)`: truyền thêm hàm mở khóa → tới epoch 6 `train_model` tự gọi nó để fine-tune
-4. `evaluate_model` trên test + val
-
-**Ra:** `results/mobilenetv3_tl/`.
-
----
-
-## C6. Bên trong `train_model` (utils.py) — chuyện gì xảy ra khi train
-
-Đây là phần mà Keras chỉ cần `model.fit()`, còn PyTorch phải tự viết:
-
-1. Tạo thư mục `results/<name>/`, đưa model lên GPU
-2. Gọi `make_loader` → `load_split` → đọc ảnh theo `splits.csv` (có cache thì đọc cache) → chia thành batch; tập train thì xáo trộn + augmentation qua `XrayDataset`
-3. Tính trọng số lớp (COVID ít ảnh → trọng số lớn) → tạo hàm loss `CrossEntropyLoss`
-4. Tạo optimizer AdamW + bộ giảm lr
-5. Lặp từng epoch:
-   - (Transfer learning, tới epoch 6) gọi `unfreeze` mở khóa tầng cuối, tạo optimizer mới với lr nhỏ
-   - **Train**: mỗi batch → model đoán → tính loss → `backward()` tính gradient → `optimizer.step()` cập nhật trọng số
-   - **Val**: chạy tập val, chỉ tính loss / accuracy, không cập nhật
-   - In 1 dòng `[tên] ep 05 ... train ... val ...`
-   - val loss tốt nhất từ trước tới giờ → **lưu `best.pt`**; không tiến bộ `patience` epoch liền → dừng
-6. Ghi `history.json` (điểm từng epoch) + `meta.json` (cấu hình, thời gian, số tham số)
-7. Nạp lại `best.pt` (bản tốt nhất) và trả model về
-
-## C7. Bên trong `evaluate_model` (utils.py) — chấm điểm
-
-1. Gọi `predict` → chạy model trên cả tập (test hoặc val), ra xác suất từng lớp cho mỗi ảnh
-2. Lớp có xác suất cao nhất = lớp đoán
-3. So với nhãn thật → accuracy, precision, recall, F1, confusion matrix (dùng sklearn)
-4. Ghi `metrics_<tập>.json` + `probs_<tập>.npy`, in 1 dòng `[tên] test acc ... f1 ...`
-
----
-
-## C8. Bước 5 — `5_predict.py` (dùng khi vấn đáp, không train)
-
-Chạy: `uv run python src/5_predict.py` (hoặc thêm đường dẫn 1 ảnh)
-
-| Bước | Làm gì |
-|---|---|
-| `# 1.` | Tạo 4 model "rỗng" (chưa học gì) từ `models.py` |
-| `# 2.` | Đọc trọng số đã học từ `results/<model>/best.pt` vào từng model (`load_state_dict`) |
-| `# 3a.` | Nếu có ảnh: mở ảnh → xám → resize → chuẩn hóa → cho 4 model đoán → in lớp + xác suất |
-| `# 3b.` | Nếu không: gọi `predict` trên tập test → in bảng Accuracy / Precision / Recall / F1 |
-| `# 4.` | In confusion matrix từng model |
-
-File này **chỉ đọc**, không ghi gì ra ổ đĩa.
-
----
-
-## C9. Bước 6 — `6_figures.py` (vẽ hình)
-
-Chạy: `uv run python src/6_figures.py`. Đọc `cleaning_summary.json`, ảnh (qua `load_split`), các file `history.json`, `metrics_test.json`, `best.pt` rồi vẽ:
-
-| Bước | Đọc từ | Ra |
-|---|---|---|
-| `# 1.` | `cleaning_summary.json` | `class_distribution.png` |
-| `# 2.`, `# 3.` | ảnh train (`load_split`), `train_augment` | `samples.png`, `augmentation.png` |
-| `# 4.` | (vẽ tay bằng `draw_stack`) | `arch_*.png` |
-| `# 5.` | `history.json` của 4 model | `training_curves.png` |
-| `# 6.` | `metrics_test.json` | `confusion_matrices.png` |
-| `# 7.` | `metrics_*.json`, `meta.json` | `results_tables.md` |
-| `# 8.` | `best.pt` + `probs_test.npy` của Complex CNN, MobileNetV3 | `gradcam_*.png` |
-
----
-
-## C10. Tóm tắt 1 câu
-
-**1_ chuẩn bị dữ liệu → 2_, 3_, 4_ train 4 model và lưu `best.pt` → 5_ mở `best.pt` ra dự đoán → 6_ vẽ hình cho báo cáo. `utils.py` lo đọc ảnh / train / chấm điểm, `models.py` chứa 3 loại model, cả hai được các file kia gọi tới.**
+| Vì sao Simple CNN dùng ảnh 128 mà model khác 224? | Simple CNN Flatten thẳng vào Dense: ảnh 224 sẽ có 49,6 triệu tham số. Thử cả 2 cỡ thì kết quả gần bằng nhau nên chọn 128 cho nhẹ và nhanh |
+| Vì sao lớp cuối không có Softmax? | `CrossEntropyLoss` đã gồm softmax; khi dự đoán mới gọi `torch.softmax` |
+| `model.train()` và `model.eval()` khác gì? | train: bật Dropout, BatchNorm dùng thống kê của batch. eval: tắt Dropout, BatchNorm dùng thống kê đã lưu |
+| `optimizer.zero_grad()` để làm gì? | Xóa gradient của batch trước, vì PyTorch cộng dồn gradient |
+| `loss.backward()` / `optimizer.step()`? | backward: tính gradient bằng lan truyền ngược. step: cập nhật trọng số theo gradient |
+| Early stopping chọn model nào? | Model ở epoch có **val loss thấp nhất** (lưu `best.pt`), không phải epoch cuối |
+| Vì sao không dùng tập test để chọn lr? | Như vậy test không còn khách quan (chọn theo test = "học" trên test) |
+| AdamW là gì? | Adam (lr thích nghi cho từng tham số, có momentum) + weight decay tách riêng → chống overfit |
+| ReduceLROnPlateau là gì? | Val loss không giảm 3 epoch → giảm lr còn 30% |
+| Dropout 0,5 nghĩa là gì? | Mỗi bước train tắt ngẫu nhiên 50% neuron → giảm phụ thuộc vào vài neuron, giảm overfit |
+| Vì sao không lật ngang ảnh? | Tim nằm bên trái, lật ra ảnh sai giải phẫu |
+| Class weight tính sao? | Tổng ảnh / (số lớp × số ảnh lớp đó): COVID 1,29, NORMAL 0,98, PNEUMONIA 0,83 |
+| Fine-tune mở bao nhiêu tham số? | Giai đoạn 1: 3.843 (chỉ lớp cuối). Giai đoạn 2: 2.183.307 (4 khối cuối + lớp cuối) |
+| Mixed precision (`autocast`, `GradScaler`) là gì? | Tính một phần bằng số thực 16 bit trên GPU cho nhanh, ít bộ nhớ; GradScaler phóng to loss để gradient nhỏ không bị mất |
+| Seed 42 để làm gì? | Cố định ngẫu nhiên → chia tập và khởi tạo trọng số giống nhau mỗi lần chạy |
+| Lưu và nạp model thế nào? | `torch.save(model.state_dict(), "best.pt")` lúc train; `model.load_state_dict(torch.load(...))` lúc predict |

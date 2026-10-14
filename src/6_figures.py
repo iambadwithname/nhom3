@@ -1,5 +1,3 @@
-# Vẽ hình và bảng cho báo cáo -> results/figures/, results/results_tables.md
-# Chạy: uv run python src/6_figures.py  (cần train xong các model trước)
 import json
 
 import matplotlib
@@ -28,7 +26,6 @@ plt.rcParams.update({"axes.grid": True, "grid.alpha": 0.3, "savefig.dpi": 200, "
 
 
 def draw_stack(ax, layers, title):
-    # vẽ các lớp của model thành các ô xếp chồng, input ở dưới cùng
     h, gap = 0.62, 0.32
     for i, (text, color) in enumerate(layers):
         y = i * (h + gap)
@@ -43,7 +40,6 @@ def draw_stack(ax, layers, title):
     ax.set_title(title, fontsize=10, color=INK, pad=6)
 
 
-# 1. Số ảnh mỗi lớp trước / sau làm sạch
 s = json.loads((DATA_DIR / "cleaning_summary.json").read_text())
 x = np.arange(len(CLASSES))
 fig, ax = plt.subplots(figsize=(6, 3.4))
@@ -59,7 +55,6 @@ ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, 1.13), ncol=2)
 fig.savefig(FIG / "class_distribution.png")
 plt.close(fig)
 
-# 2. Ảnh mẫu mỗi lớp
 imgs, labels = load_split("train", 224)
 labels = np.array(labels)
 fig, axes = plt.subplots(3, 5, figsize=(5 * 1.8, 3 * 1.9))
@@ -75,7 +70,6 @@ for r, c in enumerate(CLASSES):
 fig.savefig(FIG / "samples.png")
 plt.close(fig)
 
-# 3. Ví dụ augmentation
 aug = train_augment()
 torch.manual_seed(0)
 fig, axes = plt.subplots(2, 5, figsize=(5 * 1.8, 2 * 1.9))
@@ -89,7 +83,6 @@ for r, idx in enumerate([3, 1500]):
 fig.savefig(FIG / "augmentation.png")
 plt.close(fig)
 
-# 4. Sơ đồ kiến trúc các model
 simple = [
     ("Input 1×128×128", IO),
     ("3×3 Conv(32), ReLU", CONV),
@@ -116,7 +109,6 @@ complex_ = [
 fig = plt.figure(figsize=(9.5, 8))
 ax = fig.add_axes([0.0, 0.0, 0.38, 1])
 draw_stack(ax, complex_, "Complex CNN (~7.6M params)")
-# khối Inception: 4 nhánh song song
 ax2 = fig.add_axes([0.42, 0.5, 0.56, 0.48])
 ax2.axis("off")
 ax2.set_xlim(0, 4)
@@ -137,7 +129,6 @@ for b, steps in enumerate(branches):
     ax2.annotate("", (2, 3.5), (bx + 0.45, top), arrowprops=dict(arrowstyle="->", color=MUTED, lw=0.7))
 ax2.add_patch(FancyBboxPatch((1.2, 3.5), 1.6, 0.5, boxstyle="round,pad=0.02", fc=BLOCK, ec=MUTED, lw=0.8))
 ax2.text(2, 3.75, "Concatenate (channels)", ha="center", va="center", fontsize=8)
-# khối Residual
 ax3 = fig.add_axes([0.55, 0.05, 0.3, 0.4])
 draw_stack(ax3, [("x", IO), ("3×3 Conv, BN, ReLU", CONV), ("3×3 Conv, BN", CONV),
                  ("+ shortcut (identity / 1×1 Conv), ReLU", BLOCK)], "Residual block")
@@ -158,7 +149,6 @@ for fname, title, frozen, trainable in [
     fig.savefig(FIG / fname)
     plt.close(fig)
 
-# 5. Đường cong loss / accuracy khi train
 fig, axes = plt.subplots(len(NAMES), 2, figsize=(9, 2.4 * len(NAMES)), squeeze=False)
 for r, n in enumerate(NAMES):
     h = json.loads((RESULTS / n / "history.json").read_text())
@@ -177,7 +167,6 @@ fig.tight_layout()
 fig.savefig(FIG / "training_curves.png")
 plt.close(fig)
 
-# 6. Confusion matrix trên tập test
 fig, axes = plt.subplots(2, 2, figsize=(4.2 * 2, 3.4 * 2), squeeze=False)
 for ax in axes.flat[len(NAMES):]:
     ax.axis("off")
@@ -198,7 +187,6 @@ fig.tight_layout()
 fig.savefig(FIG / "confusion_matrices.png")
 plt.close(fig)
 
-# 7. Bảng kết quả -> results/results_tables.md
 rows = ["| Model | Accuracy | Precision | Recall | F1-score | Params | Epochs (best) | Train time (s) |",
         "|---|---|---|---|---|---|---|---|"]
 per_class = ["| Model | Class | Precision | Recall | F1-score | Support |", "|---|---|---|---|---|---|"]
@@ -224,7 +212,6 @@ text += "\n\n## Per-class test results\n\n" + "\n".join(per_class)
 text += "\n\n## Simple CNN hyperparameter search (validation set)\n\n" + "\n".join(tune) + "\n"
 (RESULTS / "results_tables.md").write_text(text, encoding="utf-8")
 
-# 8. Grad-CAM: tô màu vùng ảnh mà model nhìn vào khi đoán
 test_imgs, test_labels = load_split("test", 224)
 test_labels = np.array(test_labels)
 for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("mobilenetv3_tl", mobilenet_transfer(), True)]:
@@ -232,9 +219,8 @@ for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("mobilenetv3
     model = model.to(DEVICE).eval()
     for p in model.parameters():
         p.requires_grad = True
-    layer = model.residual[-1] if name.startswith("complex") else model.features[-1]  # lớp conv cuối
+    layer = model.residual[-1] if name.startswith("complex") else model.features[-1]
 
-    # chọn mỗi lớp 3 ảnh đoán đúng + tối đa 6 ảnh đoán sai
     pred = np.load(RESULTS / name / "probs_test.npy").argmax(1)
     rng = np.random.default_rng(0)
     picks = [i for c in range(3) for i in rng.choice(np.where((test_labels == c) & (pred == c))[0], 3, replace=False)]
@@ -243,7 +229,6 @@ for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("mobilenetv3
     ds = XrayDataset(test_imgs, test_labels.tolist(), augment=False, rgb=rgb)
     x = torch.stack([ds[i][0] for i in picks]).to(DEVICE)
 
-    # lấy feature map và gradient của lớp conv cuối
     acts, grads = {}, {}
     h1 = layer.register_forward_hook(lambda _m, _i, o: acts.__setitem__("a", o))
     h2 = layer.register_full_backward_hook(lambda _m, _gi, go: grads.__setitem__("g", go[0]))
@@ -259,7 +244,6 @@ for name, model, rgb in [("complex_cnn_aug", ComplexCNN(), False), ("mobilenetv3
     prob = torch.softmax(out, 1).detach().cpu().numpy()
     cls = cls.cpu().numpy()
 
-    # vẽ heatmap lên ảnh, tiêu đề đỏ = đoán sai
     cols = 6
     nrows = int(np.ceil(len(picks) / cols))
     fig, axes = plt.subplots(nrows, cols, figsize=(cols * 2, nrows * 2.5))
